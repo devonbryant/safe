@@ -17,6 +17,7 @@ case class Complex(re: Double, im: Double = 0.0) {
       val denom = rhs.im * q + rhs.re
       Complex((im * q + re) / denom, (im - re * q) / denom)
     }
+  def unary_- = Complex(-re, -im)
   
   override def toString() = 
     if (im >= 0) re + " + i" + im 

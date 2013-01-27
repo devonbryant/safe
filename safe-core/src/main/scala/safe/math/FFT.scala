@@ -1,6 +1,10 @@
 package safe.math
 
+/**
+ * A simple Cooley-Turkey Fast Fourier Transform
+ */
 object FFT {
+  import NumericSeqOps._
   import scala.math._
   
   def fft(data: Seq[Complex]): Seq[Complex] = {
@@ -16,8 +20,8 @@ object FFT {
       case 0 => Nil
       case 1 => data
       case n => {
-        val evens = ditfft2(data.zipWithIndex filter { _._2 % 2 == 0 } map { _._1 })
-        val odds = ditfft2(data.zipWithIndex filter { _._2 % 2 != 0 } map { _._1 })
+        val evens = ditfft2(data filterByIndex { _ % 2 == 0 })
+        val odds = ditfft2(data filterByIndex { _ % 2 != 0 })
         val phis = for (i <- 0 to n/2 - 1) yield {
           val phi = -2.0 * Pi * i/n
           Complex(cos(phi), sin(phi))
@@ -25,9 +29,9 @@ object FFT {
         
         // one = evens(i) + odds(i) * phis(i)
         // two = evens(i) - odds(i) * phis(i)
-        val ops = (odds, phis).zipped map { _ * _ }
-        val one = (evens, ops).zipped map { _ + _ }
-        val two = (evens, ops).zipped map { _ - _ }
+        val ops = odds * phis
+        val one = evens + ops
+        val two = evens - ops
         
         one ++ two
       }
