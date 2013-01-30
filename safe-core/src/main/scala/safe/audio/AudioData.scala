@@ -1,9 +1,48 @@
 package safe.audio
 
 import safe.math.Complex
+import scala.collection.immutable
 
-case class AudioData(data: Seq[Double], offsetIdx: Int, sampleFreq: Float)
+sealed trait AudioData[A] {
+  def id: String
+  def data: Channels[A]
+  def index: Int
+  def sampleFreq: Float
+  def metadata: Map[String, Any]
+}
 
-object AudioConversions {
-  implicit def toComplex(data: Seq[Double]): Seq[Complex] = data.map(Complex(_))
+case class AudioBytes(id: String,
+                      data: Channels[Seq[Byte]],
+                      index: Int,
+                      sampleFreq: Float,
+                      metadata: Map[String, Any] = immutable.Map.empty) extends AudioData[Seq[Byte]]
+
+case class AudioValues(id: String,
+                       data: Channels[Seq[Double]],
+                       index: Int,
+                       sampleFreq: Float,
+                       metadata: Map[String, Any] = immutable.Map.empty) extends AudioData[Seq[Double]]
+
+case class AudioComplexValues(id: String,
+                              data: Channels[Seq[Complex]],
+                              index: Int,
+                              sampleFreq: Float,
+                              metadata: Map[String, Any] = immutable.Map.empty) extends AudioData[Seq[Complex]]
+
+case class AudioAggregate(id: String,
+                          data: Channels[Double],
+                          index: Int,
+                          sampleFreq: Float,
+                          metadata: Map[String, Any] = immutable.Map.empty) extends AudioData[Double]
+
+object AudioFunctions {
+  /** Merge a set of channels into a single sequence by averaging indexed elements */
+  def merge[A](channels: Channels[Seq[A]])(implicit num: Integral[A]) = {
+    channels.foldLeft(Seq[A]()) {
+      case (Nil, Nil) => Nil
+      case (a, Nil) => a
+      case (Nil, b) => b
+      case (a, b) => (a, b).zipped map { num.plus(_, _) }
+    } map { num.quot(_, num.fromInt(channels.size)) }
+  }
 }

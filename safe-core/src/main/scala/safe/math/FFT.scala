@@ -4,7 +4,7 @@ package safe.math
  * A simple Cooley-Turkey Fast Fourier Transform
  */
 object FFT {
-  import NumericSeqOps._
+  import SeqOps._
   import scala.math._
   
   def fft(data: Seq[Complex]): Seq[Complex] = {
@@ -27,11 +27,11 @@ object FFT {
           Complex(cos(phi), sin(phi))
         }
         
-        // one = evens(i) + odds(i) * phis(i)
-        // two = evens(i) - odds(i) * phis(i)
-        val ops = odds * phis
-        val one = evens + ops
-        val two = evens - ops
+        // one = evens(i) + odds(i) * Complex(cos(-2Pi * i/n), sin(-2Pi * i/n))
+        // two = evens(i) - odds(i) * Complex(cos(-2Pi * i/n), sin(-2Pi * i/n))
+        val ops = odds.zipWith(phis) { _ * _ }
+        val one = evens.zipWith(ops) { _ + _ }
+        val two = evens.zipWith(ops) { _ - _ }
         
         one ++ two
       }
