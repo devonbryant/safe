@@ -38,11 +38,12 @@ case class AudioAggregate(id: String,
 object AudioFunctions {
   /** Merge a set of channels into a single sequence by averaging indexed elements */
   def merge[A](channels: Channels[Seq[A]])(implicit num: Integral[A]) = {
+    val div = num.fromInt(channels.size)
     channels.foldLeft(Seq[A]()) {
       case (Nil, Nil) => Nil
       case (a, Nil) => a
       case (Nil, b) => b
       case (a, b) => (a, b).zipped map { num.plus(_, _) }
-    } map { num.quot(_, num.fromInt(channels.size)) }
+    } map { num.quot(_, div) }
   }
 }
