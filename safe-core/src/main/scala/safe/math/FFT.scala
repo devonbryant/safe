@@ -14,6 +14,13 @@ object FFT {
     ditfft2(data)
   }
   
+  def fft[A](data: Seq[A])(implicit num: Numeric[A]): Seq[Complex] = {
+    require((data.length & data.length - 1) == 0, 
+        "Cannot calculate fft for length " + data.length + ", must be a power of 2")
+    
+    ditfft2(data map { a => Complex(num.toDouble(a)) })
+  }
+  
   // Cooley-Turkey FFT
   private[this] def ditfft2(data: Seq[Complex]): Seq[Complex] = {
     data.length match {
