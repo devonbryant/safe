@@ -6,6 +6,7 @@ package safe.math
 object FFT {
   import SeqOps._
   import scala.math._
+  import scalaz.Memo._
   
   def fft(data: Seq[Complex]): Seq[Complex] = {
     require((data.length & data.length - 1) == 0, 
@@ -20,6 +21,10 @@ object FFT {
     
     ditfft2(data map { a => Complex(num.toDouble(a)) })
   }
+  
+  /** Calculate the FFT frequency bins for a given frame size and sample rate */
+  def fftFreqs(size: Int, sampleRate: Float): Seq[Double] = 
+    fftFreqMemo((size, sampleRate))
   
   // Cooley-Turkey FFT
   private[this] def ditfft2(data: Seq[Complex]): Seq[Complex] = {
@@ -42,6 +47,14 @@ object FFT {
         
         one ++ two
       }
+    }
+  }
+  
+  private[this] lazy val fftFreqMemo = immutableHashMapMemo {
+    a: (Int, Float) => {
+      val (size, sampleRate) = a
+      val factor = sampleRate.toDouble / size.toDouble
+      (0 until size) map { factor * _ }
     }
   }
 }
