@@ -12,23 +12,26 @@ package safe.math
 object Window {
   import scalaz.Memo._
   import scala.math._
+  import SeqOps._
   
-  type Window = Seq[Double]
+  type WindowFunction = Seq[Double] => Seq[Double]
 
-  /** Get a symmetric ''Bartlett'' window of size n */
-  def bartlett(n: Int): Window = bartlettMemo(n)
+  /** Symmetric ''Bartlett'' window function */
+  val bartlett: WindowFunction = window(bartlettMemo)_
   
-  /** Get a symmetric ''Blackman'' window of size n */
-  def blackman(n: Int): Window = blackmanMemo(n)
+  /** Symmetric ''Blackman'' window function */
+  val blackman: WindowFunction = window(blackmanMemo)_
   
-  /** Get a symmetric 4-term ''Blackman-Harris'' window of size n */
-  def blackmanHarris(n: Int): Window = blackmanHarrisMemo(n)
+  /** Symmetric 4-term ''Blackman-Harris'' window function */
+  val blackmanHarris: WindowFunction = window(blackmanHarrisMemo)_
   
-  /** Get a symmetric ''Hamming'' window of size n */
-  def hamming(n: Int): Window = hammingMemo(n)
+  /** Symmetric ''Hamming'' window function */
+  val hamming: WindowFunction = window(hammingMemo)_
   
-  /** Get a symmetric ''Hann'' window of size n */
-  def hann(n: Int): Window = hannMemo(n)
+  /** Symmetric ''Hann'' window function */
+  val hann: WindowFunction = window(hannMemo)_
+  
+  def window(w: Int => Seq[Double])(d: Seq[Double]) = d.zipWith(w(d.length)) { _ * _ }
 
   private[this] lazy val bartlettMemo = immutableHashMapMemo {
     n: Int => {
