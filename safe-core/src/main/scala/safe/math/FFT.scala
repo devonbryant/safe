@@ -8,7 +8,7 @@ object FFT {
   import scala.math._
   import scalaz.Memo._
   
-  def fft(data: Seq[Complex]): Seq[Complex] = {
+  def fftc(data: Seq[Complex]): Seq[Complex] = {
     require((data.length & data.length - 1) == 0, 
         "Cannot calculate fft for length " + data.length + ", must be a power of 2")
         
