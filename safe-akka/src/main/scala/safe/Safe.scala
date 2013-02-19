@@ -1,71 +1,59 @@
+package safe
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import scala.concurrent.Future
+import scala.concurrent._
 import scala.util.Random
 import scala.math._
+import safe.math._
 
-case class Data(idx: Int, data: Array[Double])
-case class Create(idx: Int)
-case class AvgResult(idx: Int, avg: Double)
+case class Data(data: Seq[Double])
+case class AvgResult(avg: Double)
+case object Create
 case object Start
-case object Done
 
+// Silly test app for comparing standard code, futures, and actors
 object Safe extends App {
   val start = System.currentTimeMillis
   
   val system = ActorSystem("TestSys")
   implicit val disp = system.dispatcher
   
-  // some expensive computation
-  def exp(a: Array[Double]) = {
-    var res = 0.0;
-    var i = 0;
-    while (i < a.length) {
-      var j = 0;
-      while (j < a.length) {
-        res += a(i) + a(j) / 2
-        j += 1;
-      }
-      i += 1;
-    }
-    
-    res / a.length
-  }
-  
 //  runActors()
   runFutures()
 //  runSeq()
   
+  def avg(a: Seq[Complex]) = a.sum.re / a.length
+  
+  def randomData(n: Int) = Seq.fill[Double](n) { Random.nextDouble() }
+  
   def runSeq() = {
-    val data = (1 to 1000) map { i => {
-//      println("Creating " + i) 
-      (i, Array.fill(2048) { Random.nextDouble }) }
+    val data = (1 to 100) map { _ => randomData(2048) }
+    val res = data map { d =>
+      avg(FFT.fft(d))
     }
-    val res = data map { d => {
-      val avg = exp(d._2)
-//      println("Average (" + d._1 + ") = " + avg)
-      (d._1, avg) }
-    }
-    system.shutdown();
+//    system.shutdown();
+    println(res.sum + ", " + res.size)
     println("Finished in " + (System.currentTimeMillis - start) + " millis")
   }
   
   def runFutures() = {
-    def create(i: Int) = Future {
-//      println("Creating " + i)
-      (i, Array.fill(2048) { Random.nextDouble })
-    }
     
-    def avg(f: Future[(Int, Array[Double])]) = f map {t => (t._1, exp(t._2)) }
+    def futData = future { randomData(1024) }
     
-    val res = Future.traverse(1 to 1000)( i => avg(create(i)))
+    def futFft(f: Future[Seq[Double]]) = f map { v => FFT.fft(v) }
+    
+    def futAvg(f: Future[Seq[Complex]]) = f map { t => avg(t) }
+    
+    val res = Future.traverse(1 to 100)( _ => futAvg(futFft(futData)) )
     
     res onSuccess {
       case a => {
-//        a foreach { println(_) }
+    	println(a.sum + ", " + a.size)
         system.shutdown();
         println("Finished in " + (System.currentTimeMillis - start) + " millis")
       }
     }
+    
   }
   
   def runActors() = {
@@ -77,15 +65,20 @@ object Safe extends App {
 }
 
 class Master extends Actor {
-  var i = 1000;
+  var i = 100;
+  val a = new Array[Double](100)
   
   def receive = {
     case Start => (1 to i) foreach { i =>
-      context.actorOf(Props(new CreateActor(self))) ! Create(i)
+      context.actorOf(Props(new CreateActor(self))) ! Create
     }
-    case Done => {
+    case AvgResult(avg) => {
       i = i - 1
-      if (i <= 1) context.system.shutdown()
+      a(i) = avg
+      if (i <= 0) {
+        println(a.sum + ", " + a.size)
+        context.system.shutdown()
+      }
     }
   }
 }
@@ -93,15 +86,15 @@ class Master extends Actor {
 class CreateActor(parent: ActorRef) extends Actor {
   val avgActor = context.actorOf(Props[AvgActor])
   def receive = {
-    case Create(i) => avgActor ! Data(i, Array.fill(2048) { Random.nextDouble })
-    case AvgResult(i, avg) => parent ! Done
+    case Create => avgActor ! Data(Safe.randomData(2048))
+    case AvgResult(avg) => parent ! AvgResult(avg)
     case _ => println("Unknown request to CreateActor !!!")
   }
 }
 
 class AvgActor extends Actor {
   def receive = {
-    case Data(i, d) => sender ! AvgResult(i, Safe.exp(d))
+    case Data(d) => sender ! AvgResult(Safe.avg(FFT.fft(d)))
     case _ => println("Unknown request to AvgActor !!!")
   }
 }
