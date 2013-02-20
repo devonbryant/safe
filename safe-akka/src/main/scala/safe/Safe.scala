@@ -31,7 +31,7 @@ object Safe extends App {
     val res = data map { d =>
       avg(FFT.fft(d))
     }
-//    system.shutdown();
+    system.shutdown();
     println(res.sum + ", " + res.size)
     println("Finished in " + (System.currentTimeMillis - start) + " millis")
   }

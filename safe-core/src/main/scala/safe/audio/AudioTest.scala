@@ -6,16 +6,24 @@ import FFT._
 import MFCC._
 import PowerSpectrum._
 
+import scala.util._
+import scala.concurrent._
+import duration._
+import util._
+
+import ExecutionContext.Implicits.global
+
 object AudioTest extends App {
   
-  val start = System.currentTimeMillis
+  val start = System.currentTimeMillis()
   
-  val file = new java.io.File("/Users/devo/dev/datasets/mir/audio/notes/acoustic/acoustic_1/A_2.wav")
+  val file = new java.io.File("C:/dev/projects/school/UCCS-MIR/mir/audio/training/notes/acoustic/acoustic_1/A_2.wav")
   
   val channels = AudioStream.read(file.toURI())
   val data = AudioFunctions.merge(channels)
+  val step = 1024
   
-  val writer = new java.io.FileWriter("/Users/devo/dev/datasets/mir/out/A_2_mfcc.csv")
+  val writer = new java.io.FileWriter("C:/temp/A_2_mfcc.futures.csv")
   
   val df = new java.text.DecimalFormat()
   df.setMaximumFractionDigits(4)
@@ -23,35 +31,49 @@ object AudioTest extends App {
   
   val fft2: Seq[Double] => Seq[Complex] = fft
   
-//  val extraction = wrap(hann, "hann") andThen wrap(fft2, "fft") andThen wrap(magnitude, "mag") andThen wrap(mfcc(44100, freqMin=0, freqMax=40000)_, "mfcc")
-  val extraction = hann andThen fft2 andThen magnitude andThen mfcc(44100, freqMin=0, freqMax=40000)_
-  data.grouped(1024) foreach { frame => 
-    val padFrame = frame.length match {
-      case 1024 => frame
-      case n => frame ++ Seq.fill(1024 - n) { 0.0 }
+  def show(a: Seq[Double]) = a map { df.format(_) }
+  
+  val extraction = hann andThen fft2 andThen magnitude andThen mfcc(44100, freqMin=0, freqMax=40000)_ andThen show
+  
+  runSequential()
+//  runFutures()
+  
+  def pad(frame: Seq[Double]) = frame.length match {
+    case a if(a == step) => frame
+    case n => frame ++ Seq.fill(step - n) { 0.0 }
+  }
+  
+  def runSequential() = {
+    data.grouped(step) foreach { frame => 
+      val results = extraction(pad(frame))
+      writer.write(results.mkString(",") + "\n")
+    }
+  
+    writer.close()
+  
+    val end = System.currentTimeMillis
+    println("Ran in " + (end - start) + " millis")
+  }
+  
+  def runFutures() = {
+    def extractionFuture(d: Seq[Double]) = future { extraction(d) }
+    
+    val results = Future.traverse(data.grouped(step)) { frame => 
+      extractionFuture(pad(frame))
+    } andThen {
+      case Success(itr) => {
+        itr foreach { row =>
+          writer.write(row.mkString(",") + "\n")
+        }
+      }
+      case Failure(msg) => println("Failure: " + msg)
     }
     
-    val features = extraction(padFrame)
-    val strFeats = features map { df.format(_) }
-    writer.write(strFeats.mkString(",") + "\n")
+    Await.ready(results, Duration.Inf)
+    
+    writer.close()
+    
+    val end = System.currentTimeMillis
+    println("Ran in " + (end - start) + " millis")
   }
-  
-  writer.close()
-  
-  val end = System.currentTimeMillis
-  
-  println("Ran in " + (end - start) + " millis")
-  
-  def wrap[A, B](f: A => B, s: String) = (a: A) => {
-    val st = System.currentTimeMillis()
-    val b = f(a)
-    val en = System.currentTimeMillis()
-    println(s + " took " + (en - st) + " ms")
-    b
-  }
-  
-//  val data = (0 to 256) map { i => 32000.0 * math.cos(i) }
-//  val mfccs = safe.math.MFCC.mfcc(data, 11025, freqMin=1, freqMax=4000)
-////  val mfccs = safe.math.MFCC.mfcc(data, 11025)
-//  println(mfccs.mkString("  "))
 }
