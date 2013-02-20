@@ -17,13 +17,13 @@ object AudioTest extends App {
   
   val start = System.currentTimeMillis()
   
-  val file = new java.io.File("C:/dev/projects/school/UCCS-MIR/mir/audio/training/notes/acoustic/acoustic_1/A_2.wav")
+  val file = new java.io.File("../../../datasets/mir/audio/notes/acoustic/acoustic_1/A_2.wav")
   
   val channels = AudioStream.read(file.toURI())
   val data = AudioFunctions.merge(channels)
   val step = 1024
   
-  val writer = new java.io.FileWriter("C:/temp/A_2_mfcc.futures.csv")
+  val writer = new java.io.FileWriter("../../../datasets/mir/out/A_2_mfcc.csv")
   
   val df = new java.text.DecimalFormat()
   df.setMaximumFractionDigits(4)
@@ -33,7 +33,7 @@ object AudioTest extends App {
   
   def show(a: Seq[Double]) = a map { df.format(_) }
   
-  val extraction = hann andThen fft2 andThen magnitude andThen mfcc(44100, freqMin=0, freqMax=40000)_ andThen show
+  val extraction = hann andThen fft2 andThen magnitude andThen mfcc(44100)_ andThen show
   
   runSequential()
 //  runFutures()
