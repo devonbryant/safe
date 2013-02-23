@@ -5,17 +5,24 @@ import scala.math._
 import scalaz.Memo._
   
 /**
- * A simple Cooley-Turkey Fast Fourier Transform
+ * Module for Fast Fourier Transform functions.
  */
 object FFT {
   
+  /** Compute a forward FFT on a 1-dimensional real data sequence */
   def fft(data: Seq[Double]): Seq[Complex] = {
     require((data.length & data.length - 1) == 0,
       "Cannot calculate fft for length " + data.length + ", must be a power of 2")
       
     fft(data.toArray, Array.ofDim[Double](data.length))
   }
+  
+  /** Compute a forward FFT on a 1-dimensional real data sequence */
+  def fft[A](data: Seq[A])(implicit num: Numeric[A]): Seq[Complex] = {
+    fft(data map { num.toDouble(_) })
+  }
 
+  /** Compute a forward FFT on a complex data sequence */
   def fftc(data: Seq[Complex]): Seq[Complex] = {
     require((data.length & data.length - 1) == 0,
       "Cannot calculate fft for length " + data.length + ", must be a power of 2")
@@ -36,12 +43,12 @@ object FFT {
     fftFreqMemo((size, sampleRate))
     
     
-  private[this] def fft(real: Array[Double], imag: Array[Double]) = {
+  private[this] def fft(real: Array[Double], imag: Array[Double]): Seq[Complex] = {
     inPlaceFFT(real, imag)
     (real, imag).zipped map { Complex(_, _) }
   }
 
-  // In-place bit reverse shuffle of real and imaginary vectors
+  // In-place bit reverse shuffle of real and imaginary arrays
   private[this] def bitReverseShuff(real: Array[Double], imag: Array[Double]) {
     val n = real.length
     val halfOfN = n >> 1
