@@ -1,5 +1,8 @@
 package safe.math
 
+import scala.math._
+import scalaz.Memo._
+
 /**
  * A common set of windowing functions, including:
  * 
@@ -10,9 +13,6 @@ package safe.math
  *  - Hann
  */
 object Window {
-  import scalaz.Memo._
-  import scala.math._
-  import SeqOps._
   
   type WindowFunction = Seq[Double] => Seq[Double]
 
@@ -31,7 +31,8 @@ object Window {
   /** Symmetric ''Hann'' window function */
   val hann: WindowFunction = window(hannMemo)_
   
-  def window(w: Int => Seq[Double])(d: Seq[Double]) = d.zipWith(w(d.length)) { _ * _ }
+  private[this] def window(w: Int => Seq[Double])(d: Seq[Double]) = 
+    (d, w(d.length)).zipped map { _ * _ }
 
   private[this] lazy val bartlettMemo = immutableHashMapMemo {
     n: Int => {

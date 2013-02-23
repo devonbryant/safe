@@ -1,11 +1,13 @@
 package safe.math
 
+import breeze.math.Complex
+import scala.math._
+
 /**
  * Functions for calculating the Magnitude/Phase or Power Spectrum
  * from frequency domain data (e.g. data from a Fourier transform)
  */
 object PowerSpectrum {
-  import scala.math._
   
   /** Calculate the Magnitude/Phase from Freq. Spectrum data */
   def magPhase(freqDomainData: Seq[Complex]): Seq[Complex] = 
@@ -21,7 +23,8 @@ object PowerSpectrum {
   def phase(freqDomainData: Seq[Complex]): Seq[Double] =
     freqDomainData map phase
   
-  val power = (c: Complex) => c.re * c.re + c.im * c.im
+  val power = (c: Complex) => c.real * c.real + c.imag * c.imag
   val magnitude = sqrt _ compose power
-  val phase = (c: Complex) => atan2(c.im, c.re)
+  val phase = (c: Complex) => atan2(c.imag, c.real)
+  
 }

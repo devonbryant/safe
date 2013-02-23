@@ -1,6 +1,7 @@
 package safe
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import breeze.math.Complex
 import scala.concurrent._
 import scala.util.Random
 import scala.math._
@@ -22,7 +23,7 @@ object Safe extends App {
   runFutures()
 //  runSeq()
   
-  def avg(a: Seq[Complex]) = a.sum.re / a.length
+  def avg(a: Seq[Complex]) = a.sum.real / a.length
   
   def randomData(n: Int) = Seq.fill[Double](n) { Random.nextDouble() }
   

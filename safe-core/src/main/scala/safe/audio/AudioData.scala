@@ -1,6 +1,6 @@
 package safe.audio
 
-import safe.math.Complex
+import breeze.math.Complex
 import scala.collection.immutable
 
 sealed trait AudioData[A] {

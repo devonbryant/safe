@@ -1,5 +1,7 @@
 package safe.audio
 
+import breeze.math.Complex
+
 import safe.math._
 import Window._
 import FFT._
@@ -29,11 +31,9 @@ object AudioTest extends App {
   df.setMaximumFractionDigits(4)
   df.setMinimumFractionDigits(4)
   
-  val fft2: Seq[Double] => Seq[Complex] = fft
-  
   def show(a: Seq[Double]) = a map { df.format(_) }
   
-  val extraction = hann andThen fft2 andThen magnitude andThen mfcc(44100)_ andThen show
+  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100)_ andThen show
   
   runSequential()
 //  runFutures()
