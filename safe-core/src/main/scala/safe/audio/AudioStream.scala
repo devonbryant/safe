@@ -1,17 +1,20 @@
 package safe.audio
 
-import javax.sound.sampled.{ AudioFormat, AudioInputStream, AudioSystem, UnsupportedAudioFileException }
-import java.nio.{ ByteBuffer, ByteOrder }
-
-import scala.collection.{ mutable, immutable }
+import javax.sound.sampled.{ AudioFormat, AudioInputStream, AudioSystem }
 
 object AudioStream {
   
   private[this] val pcm = AudioFormat.Encoding.PCM_SIGNED
   
-  /** Map an audio stream (from the URI) to audio sample values (per channel) */
-  def read(uri: java.net.URI, frameSize: Int = 1024, step: Int = 1024): AudioStreamIterator = {
-    new AudioStreamIterator(open(uri), frameSize, step)
+  /** 
+   * Map an audio stream (from the URI) to single channel (merged) frames
+   * If the step size is less than the frame size, the frames will be overlapped
+   * @param uri the audio file URI
+   * @param frameSize the length for each frame
+   * @param stepSize the step amount between frames
+   */
+  def read(uri: java.net.URI, frameSize: Int = 1024, stepSize: Int = 1024): AudioStreamIterator = {
+    new AudioStreamIterator(open(uri), frameSize, stepSize)
   }
 
   /** Open an audio input stream from the given URI */

@@ -38,7 +38,7 @@ object AudioTest extends App {
   
   
   def writeData() = {
-    val dataItr = AudioStream.read(file.toURI(), step, 768) map { AudioFunctions.merge(_) }
+    val dataItr = AudioStream.read(file.toURI(), step, 768)
     dataItr foreach { frame => 
       writer.write(frame.mkString(",") + "\n")
     }
@@ -49,15 +49,10 @@ object AudioTest extends App {
     println("Ran in " + (end - start) + " millis")
   }
   
-  def pad(frame: Seq[Double]) = frame.length match {
-    case a if(a == step) => frame
-    case n => frame ++ Seq.fill(step - n) { 0.0 }
-  }
-  
   def runSequential() = {
-    val dataItr = AudioStream.read(file.toURI(), step, step) map { AudioFunctions.merge(_) }
+    val dataItr = AudioStream.read(file.toURI(), step, step)
     dataItr foreach { frame => 
-      val results = extraction(pad(frame))
+      val results = extraction(frame)
       writer.write(results.mkString(",") + "\n")
     }
   
@@ -70,9 +65,9 @@ object AudioTest extends App {
   def runFutures() = {
     def extractionFuture(d: Seq[Double]) = future { extraction(d) }
     
-    val dataItr = AudioStream.read(file.toURI(), step, step) map { AudioFunctions.merge(_) }
+    val dataItr = AudioStream.read(file.toURI(), step, step)
     val results = Future.traverse(dataItr) { frame => 
-      extractionFuture(pad(frame))
+      extractionFuture(frame)
     } andThen {
       case Success(itr) => {
         itr foreach { row =>
