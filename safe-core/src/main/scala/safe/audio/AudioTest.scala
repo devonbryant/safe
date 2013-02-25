@@ -30,7 +30,7 @@ object AudioTest extends App {
   
   def show(a: Seq[Double]) = a map { df.format(_) }
   
-  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100)_ andThen show
+  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100, step) andThen show
   
 //  runSequential()
   runFutures()
