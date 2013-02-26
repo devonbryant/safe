@@ -17,25 +17,17 @@ object MFCC {
            melFilters: Int = 40,
            freqMin: Float = 130.0f,
            freqMax: Float = 6854.0f): Seq[Double] => Seq[Double] = {
-    // pre-cache mel filter bank and DCT matrix
-    melFilterMemo((frameSize, sampleFreq, melFilters, freqMin, freqMax))
-    dctMatrixMemo((numCoeffs, melFilters))
     
-    mfccFunction(sampleFreq, numCoeffs, melFilters, freqMin, freqMax)_
+    val melFilterBanks = melFilterMemo((frameSize, sampleFreq, melFilters, freqMin, freqMax))
+    val dctMatrix = dctMatrixMemo((numCoeffs, melFilters))
+    
+    mfccFunction(melFilterBanks, dctMatrix)_
   }
   
-  private[this] def mfccFunction(sampleFreq: Float,
-           numCoeffs: Int = 13,
-           melFilters: Int = 40,
-           freqMin: Float = 130.0f,
-           freqMax: Float = 6854.0f)(magSpecData: Seq[Double]) = {
+  private[this] def mfccFunction(melFilterBanks: DenseMatrix[Double], 
+                                 dctMatrix: DenseMatrix[Double])(magSpecData: Seq[Double]) = {
     
     val size = magSpecData.size
-    
-    val melFilterBanks = melFilterMemo(
-        (size, sampleFreq, melFilters, freqMin, freqMax))
-      
-    val dctMatrix = dctMatrixMemo((numCoeffs, melFilters))
     
     val magSpecVec = new DenseVector(magSpecData.take(size/2 + 1).toArray)
     
