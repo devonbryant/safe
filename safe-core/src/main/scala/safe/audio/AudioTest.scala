@@ -20,7 +20,8 @@ object AudioTest extends App {
   val start = System.currentTimeMillis()
   
   val file = new java.io.File("../../../datasets/mir/audio/notes/acoustic/acoustic_1/A_2.wav")
-  val step = 1024
+  val frameSize = 1024
+  val stepSize = 1024
   
   val writer = new java.io.FileWriter("../../../datasets/mir/out/A_2_mfcc.csv")
   
@@ -30,7 +31,7 @@ object AudioTest extends App {
   
   def show(a: Seq[Double]) = a map { df.format(_) }
   
-  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100, step) andThen show
+  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100, frameSize) andThen show
   
 //  runSequential()
   runFutures()
@@ -38,7 +39,7 @@ object AudioTest extends App {
   
   
   def writeData() = {
-    val dataItr = AudioStream.read(file.toURI(), step, 768)
+    val dataItr = AudioStream.read(file.toURI(), frameSize, stepSize)
     dataItr foreach { frame => 
       writer.write(frame.mkString(",") + "\n")
     }
@@ -50,7 +51,7 @@ object AudioTest extends App {
   }
   
   def runSequential() = {
-    val dataItr = AudioStream.read(file.toURI(), step, step)
+    val dataItr = AudioStream.read(file.toURI(), frameSize, stepSize)
     dataItr foreach { frame => 
       val results = extraction(frame)
       writer.write(results.mkString(",") + "\n")
@@ -65,7 +66,7 @@ object AudioTest extends App {
   def runFutures() = {
     def extractionFuture(d: Seq[Double]) = future { extraction(d) }
     
-    val dataItr = AudioStream.read(file.toURI(), step, step)
+    val dataItr = AudioStream.read(file.toURI(), frameSize, stepSize)
     val results = Future.traverse(dataItr) { frame => 
       extractionFuture(frame)
     } andThen {

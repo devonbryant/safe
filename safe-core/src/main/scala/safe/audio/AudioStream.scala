@@ -14,7 +14,7 @@ object AudioStream {
    * @param stepSize the step amount between frames
    */
   def read(uri: java.net.URI, frameSize: Int = 1024, stepSize: Int = 1024): AudioStreamIterator = {
-    new AudioStreamIterator(open(uri), frameSize, stepSize)
+    AudioStreamIterator(open(uri), frameSize, stepSize)
   }
 
   /** Open an audio input stream from the given URI */
