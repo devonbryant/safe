@@ -26,10 +26,9 @@ object MFCC {
   
   private[this] def mfccFunction(melFilterBanks: DenseMatrix[Double], 
                                  dctMatrix: DenseMatrix[Double])(magSpecData: Seq[Double]) = {
-    
     val size = magSpecData.size
     
-    val magSpecVec = new DenseVector(magSpecData.take(size/2 + 1).toArray)
+    val magSpecVec = new DenseVector(magSpecData.toArray)
     
     val melSpec = melFilterBanks * magSpecVec
     safeLog.inPlace(melSpec)
@@ -39,7 +38,13 @@ object MFCC {
     melCeps.toArray.toSeq
   }
   
-  private[this] lazy val safeLog = UFunc{ (a: Double) => if (a > 0.0) log10(a) else 0.0 }
+  private[this] lazy val safeLog = UFunc{ (a: Double) => if (a > 0.0) log(a) else 0.0 }
+  
+  /** Convert frequency (hz) to mel (m) */
+  private[this] def hz2mel(hz: Double) = 1127.0 * log(1.0 + hz/700.0)
+  
+  /** Convert mel (m) to frequency (hz) */
+  private[this] def mel2hz(m: Double) = 700.0 * (exp(m/1127.0) - 1.0)
   
   // Get a cached Mel Filter Bank for a given
   // window size, sample rate, number of mel filters, min/max frequencies
@@ -53,9 +58,9 @@ object MFCC {
       val binFreqs = linspace(melFreqMin, melFreqMax, melFilters + 2)
       UFunc(mel2hz _).inPlace(binFreqs)
       
-      val melFilterMtx = DenseMatrix.zeros[Double](melFilters, size/2 + 1)
+      val melFilterMtx = DenseMatrix.zeros[Double](melFilters, size)
       
-      val fftFreqs = linspace(0.0, sampleRate/2.0, size/2 + 1)
+      val fftFreqs = linspace(0.0, sampleRate/2.0, size)
       for (i <- 0 until melFilters) {
         val ffmin = binFreqs(i)
         val ffmid = binFreqs(i + 1)
@@ -86,12 +91,6 @@ object MFCC {
       dctMtx
     } 
   }
-  
-  /** Convert frequency (hz) to mel (m) */
-  private[this] def hz2mel(hz: Double) = 1127.0 * log(1.0 + hz/700.0)
-  
-  /** Convert mel (m) to frequency (hz) */
-  private[this] def mel2hz(m: Double) = 700.0 * (exp(m/1127.0) - 1.0)
   
   private[this] def coeff(min: Double, mid: Double, max: Double, value: Double, norm: Double) = 
     if (value < min || value > max) 0.0
