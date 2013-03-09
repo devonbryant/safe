@@ -1,4 +1,4 @@
-package safe.math
+package safe.dsp
 
 import breeze.math.Complex
 import scala.math._

@@ -1,4 +1,4 @@
-package safe.math
+package safe.dsp
 
 import scala.math._
 import scalaz.Memo._

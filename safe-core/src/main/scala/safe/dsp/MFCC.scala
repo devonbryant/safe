@@ -1,4 +1,4 @@
-package safe.math
+package safe.dsp
 
 import breeze.generic.UFunc
 import breeze.linalg._

@@ -2,7 +2,7 @@ package safe.audio
 
 import breeze.math.Complex
 
-import safe.math._
+import safe.dsp._
 import Window._
 import FFT._
 import MFCC._
