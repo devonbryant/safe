@@ -5,7 +5,7 @@ import breeze.math.Complex
 import scala.concurrent._
 import scala.util.Random
 import scala.math._
-import safe.math._
+import safe.dsp._
 
 case class Data(data: Seq[Double])
 case class AvgResult(avg: Double)
