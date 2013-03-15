@@ -3,20 +3,20 @@ package safe.dsp
 import breeze.math.Complex
 import scala.math._
 import scalaz.Memo._
-  
+import scala.reflect.ClassTag
+
 /**
  * Module for Fast Fourier Transform functions.
  */
 object FFT {
-  
+
   /** Compute a forward FFT on a 1-dimensional real data sequence */
   def fft(data: Seq[Double]): Seq[Complex] = {
-    require((data.length & data.length - 1) == 0,
-      "Cannot calculate fft for length " + data.length + ", must be a power of 2")
-      
-    fft(data.toArray, Array.ofDim[Double](data.length))
+    val d = if (powOf2(data)) data else padPow2(data, 0.0)
+
+    fft(d.toArray, Array.ofDim[Double](d.length))
   }
-  
+
   /** Compute a forward FFT on a 1-dimensional real data sequence */
   def fft[A](data: Seq[A])(implicit num: Numeric[A]): Seq[Complex] = {
     fft(data map { num.toDouble(_) })
@@ -24,25 +24,23 @@ object FFT {
 
   /** Compute a forward FFT on a complex data sequence */
   def fftc(data: Seq[Complex]): Seq[Complex] = {
-    require((data.length & data.length - 1) == 0,
-      "Cannot calculate fft for length " + data.length + ", must be a power of 2")
+    val d = if (powOf2(data)) data else padPow2(data, Complex(0.0, 0.0))
 
-    val real = Array.ofDim[Double](data.length)
-    val imag = Array.ofDim[Double](data.length)
-    
-    for (i <- 0 until data.length) {
-      real(i) = data(i).real
-      imag(i) = data(i).imag
+    val real = Array.ofDim[Double](d.length)
+    val imag = Array.ofDim[Double](d.length)
+
+    for (i <- 0 until d.length) {
+      real(i) = d(i).real
+      imag(i) = d(i).imag
     }
-    
+
     fft(real, imag)
   }
 
   /** Calculate the FFT frequency bins for a given frame size and sample rate */
   def fftFreqs(size: Int, sampleRate: Float): Seq[Double] =
     fftFreqMemo((size, sampleRate))
-    
-    
+
   private[this] def fft(real: Array[Double], imag: Array[Double]): Seq[Complex] = {
     inPlaceFFT(real, imag)
     (real, imag).zipped map { Complex(_, _) }
@@ -52,7 +50,7 @@ object FFT {
   private[this] def bitReverseShuff(real: Array[Double], imag: Array[Double]) {
     val n = real.length
     val halfOfN = n >> 1
-    
+
     def swap(dv: Array[Double], a: Int, b: Int) = {
       val tmp = dv(a)
       dv(a) = dv(b)
@@ -75,14 +73,14 @@ object FFT {
       i += 1
     }
   }
-  
+
   // In-place optimized FFT (translated from Apache Commons Math)
   // Ugly imperative code, but ~ 30x faster than recursive cooley-turkey
   private[this] def inPlaceFFT(real: Array[Double], imag: Array[Double]) {
     val n = real.length
-    
+
     bitReverseShuff(real, imag)
-    
+
     var i0 = 0
     while (i0 < n) {
       val i1 = i0 + 1
@@ -98,22 +96,21 @@ object FFT {
       val srcR3 = real(i3)
       val srcI3 = imag(i3)
 
-      // 4-term DFT
       real(i0) = srcR0 + srcR1 + srcR2 + srcR3
       imag(i0) = srcI0 + srcI1 + srcI2 + srcI3
 
-	  real(i1) = srcR0 - srcR2 + (srcI1 - srcI3)
+      real(i1) = srcR0 - srcR2 + (srcI1 - srcI3)
       imag(i1) = srcI0 - srcI2 + (srcR3 - srcR1)
 
       real(i2) = srcR0 - srcR1 + srcR2 - srcR3
       imag(i2) = srcI0 - srcI1 + srcI2 - srcI3
-      
-	  real(i3) = srcR0 - srcR2 + (srcI3 - srcI1)
+
+      real(i3) = srcR0 - srcR2 + (srcI3 - srcI1)
       imag(i3) = srcI0 - srcI2 + (srcR1 - srcR3)
-      
+
       i0 += 4
     }
-    
+
     var lastN0 = 4
     var lastLogN0 = 2
     var n0, logN0 = 0
@@ -124,7 +121,7 @@ object FFT {
       wSubN0R = W_SUB_N_R(logN0)
       wSubN0I = W_SUB_N_I(logN0)
 
-      // Combine even/odd transforms of size lastN0 into a transform of size N0 (lastN0 * 2)
+      // Combine even/odd transforms
       var destEvenStartIndex = 0
       while (destEvenStartIndex < n) {
         val destOddStartIndex = destEvenStartIndex + lastN0
@@ -148,10 +145,10 @@ object FFT {
           nextWsubN0ToRI = wSubN0ToRR * wSubN0I + wSubN0ToRI * wSubN0R
           wSubN0ToRR = nextWsubN0ToRR
           wSubN0ToRI = nextWsubN0ToRI
-                    
+
           r += 1
         }
-                
+
         destEvenStartIndex += n0
       }
 
@@ -160,12 +157,27 @@ object FFT {
     }
   }
   
+  // Test whether the sequence length is a power of 2
+  private[this] def powOf2[A](data: Seq[A]) = ((data.length & data.length - 1) == 0)
+  
+  // Pad the end of the sequence with 0s to the nearest power of 2
+  private[this] def padPow2[A : ClassTag](data: Seq[A], a: A) = {
+    val len = powersOf2 find { _ >= data.length }
+    len match {
+      case Some(n) if (n >= data.length) => data ++ Array.fill(n - data.length) { a }
+      case _ => data
+    }
+  }
+  
+  // Powers of 2 (up to max int)
+  private[this] lazy val powersOf2 = (0 to 29) map { 2 << _ }
+
+  // Wn real and imaginary coefficients
   private[this] lazy val W_SUB_N_R = (0 to 64) map { i => cos(2 * Pi / pow(2, i)) }
   private[this] lazy val W_SUB_N_I = (0 to 64) map { i => -sin(2 * Pi / pow(2, i)) }
 
   private[this] lazy val fftFreqMemo = immutableHashMapMemo {
-    a: (Int, Float) =>
-      {
+    a: (Int, Float) => {
         val (size, sampleRate) = a
         val factor = sampleRate.toDouble / size.toDouble
         (0 until size) map { factor * _ }
