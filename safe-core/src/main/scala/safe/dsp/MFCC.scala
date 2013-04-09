@@ -29,7 +29,7 @@ object MFCC {
                                  dctMatrix: DenseMatrix[Double])(magSpecData: SafeVector[Double]) = {
     val size = magSpecData.length
     
-    val magSpecVec = new DenseVector(magSpecData.toArray)
+    val magSpecVec = DenseVector(magSpecData.toArray)
     
     val melSpec = melFilterBanks * magSpecVec
     safeLog.inPlace(melSpec)

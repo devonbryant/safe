@@ -1,6 +1,7 @@
 package safe.dsp
 
 import safe.SafeVector
+import breeze.linalg.{ DenseVector, Vector }
 import breeze.math.Complex
 import scala.math._
 import scalaz.Memo._
@@ -15,34 +16,62 @@ object FFT {
   def fft(data: SafeVector[Double]): SafeVector[Complex] = {
     val d = if (ispow2(data.length)) data else padPow2(data)
 
-    fft(d.toArray, Array.ofDim[Double](d.length))
+    val complex = fft(d.toArray, Array.ofDim[Double](d.length))
+    SafeVector(complex)
+  }
+  
+  def fft(data: Vector[Double]): Vector[Complex] = {
+    val d = if (ispow2(data.length)) data else padPow2(data)
+    val complex = fft(d.toArray, Array.ofDim[Double](d.length))
+    DenseVector(complex)
   }
 
   /** Compute a forward FFT on a 1-dimensional real data sequence */
-//  def fft[A](data: SafeVector[A]): Seq[Complex] = {
-//    fft(data map { _.toDouble })
-//  }
+  def fft[A](data: SafeVector[A])(implicit num: Numeric[A]): Seq[Complex] = {
+    fft(data map { num.toDouble(_) })
+  }
 
   /** Compute a forward FFT on a complex data sequence */
-//  def fftc(data: Seq[Complex]): Seq[Complex] = {
-//    val d = if (powOf2(data)) data else padPow2(data, Complex(0.0, 0.0))
-//
-//    val real = Array.ofDim[Double](d.length)
-//    val imag = Array.ofDim[Double](d.length)
-//
-//    for (i <- 0 until d.length) {
-//      real(i) = d(i).real
-//      imag(i) = d(i).imag
-//    }
-//
-//    fft(real, imag)
-//  }
+  def fftc(data: SafeVector[Complex]): SafeVector[Complex] = {
+    val d = if (powOf2(data)) data else padPow2(data)
+
+    val real = Array.ofDim[Double](d.length)
+    val imag = Array.ofDim[Double](d.length)
+
+    var i = 0
+    while (i < d.length) {
+      real(i) = d(i).real
+      imag(i) = d(i).imag
+      i += 1
+    }
+
+    val complex = fft(real, imag)
+    SafeVector(complex)
+  }
+  
+  /** Compute a forward FFT on a complex data sequence */
+  def fftc(data: Vector[Complex]): Vector[Complex] = {
+    val d = if (powOf2(data)) data else padPow2(data)
+    
+    val real = Array.ofDim[Double](d.length)
+    val imag = Array.ofDim[Double](d.length)
+
+    var i = 0
+    while (i < d.length) {
+      real(i) = d(i).real
+      imag(i) = d(i).imag
+      i += 1
+    }
+
+    val complex = fft(real, imag)
+    DenseVector(complex)
+  }
 
   /** Calculate the FFT frequency bins for a given frame size and sample rate */
   def fftFreqs(size: Int, sampleRate: Float): Seq[Double] =
     fftFreqMemo((size, sampleRate))
 
-  private[this] def fft(real: Array[Double], imag: Array[Double]): SafeVector[Complex] = {
+  private[this] def fft(real: Array[Double], imag: Array[Double]): Array[Complex] = {
     inPlaceFFT(real, imag)
     val complex = new Array[Complex](real.length)
     var i = 0
@@ -50,7 +79,7 @@ object FFT {
       complex(i) = Complex(real(i), imag(i))
       i += 1
     }
-    SafeVector(complex)
+    complex
   }
 
   // In-place bit reverse shuffle of real and imaginary arrays
@@ -166,11 +195,28 @@ object FFT {
   
   // Test whether the sequence length is a power of 2
   private[this] def powOf2[A](data: SafeVector[A]) = ((data.length & data.length - 1) == 0)
+  private[this] def powOf2[A](data: Vector[A]) = ((data.length & data.length - 1) == 0)
   
   // Pad the end of the sequence with 0s to the nearest power of 2
   private[this] def padPow2[A:ClassTag:Numeric](data: SafeVector[A]) = {
     val len = nextpow2(data.length)
     SafeVector.zeroPad(data, len)
+  }
+  
+  private[this] def padPow2[A:ClassTag:Numeric](data: Vector[A]) = {
+    val len = nextpow2(data.length)
+    if (len == data.length) data
+    else {
+      val zero = implicitly[Numeric[A]].zero
+      val bs = new Array[A](len)
+      var i = 0
+      while (i < len) {
+        bs(i) = zero
+        i += 1
+      }
+      Array.copy(data.toArray, 0, bs, 0, data.length)
+      DenseVector(bs)
+    }
   }
 
   // Wn real and imaginary coefficients
