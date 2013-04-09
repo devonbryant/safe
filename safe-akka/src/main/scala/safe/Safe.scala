@@ -7,7 +7,7 @@ import scala.util.Random
 import scala.math._
 import safe.dsp._
 
-case class Data(data: Seq[Double])
+case class Data(data: SafeVector[Double])
 case class AvgResult(avg: Double)
 case object Create
 case object Start
@@ -23,9 +23,9 @@ object Safe extends App {
   runFutures()
 //  runSeq()
   
-  def avg(a: Seq[Complex]) = a.sum.real / a.length
+  def avg(a: SafeVector[Complex]) = a.toArray.sum.real / a.length
   
-  def randomData(n: Int) = Seq.fill[Double](n) { Random.nextDouble() }
+  def randomData(n: Int) = SafeVector.fill[Double](n) { Random.nextDouble() }
   
   def runSeq() = {
     val data = (1 to 100) map { _ => randomData(2048) }
@@ -41,9 +41,9 @@ object Safe extends App {
     
     def futData = future { randomData(1024) }
     
-    def futFft(f: Future[Seq[Double]]) = f map { v => FFT.fft(v) }
+    def futFft(f: Future[SafeVector[Double]]) = f map { v => FFT.fft(v) }
     
-    def futAvg(f: Future[Seq[Complex]]) = f map { t => avg(t) }
+    def futAvg(f: Future[SafeVector[Complex]]) = f map { t => avg(t) }
     
     val res = Future.traverse(1 to 100)( _ => futAvg(futFft(futData)) )
     
