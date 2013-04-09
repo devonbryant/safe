@@ -1,5 +1,6 @@
 package safe.dsp
 
+import safe.SafeVector
 import scala.math._
 import scalaz.Memo._
 
@@ -14,7 +15,7 @@ import scalaz.Memo._
  */
 object Window {
   
-  type WindowFunction = Seq[Double] => Seq[Double]
+  type WindowFunction = SafeVector[Double] => SafeVector[Double]
 
   /** Symmetric ''Bartlett'' window function */
   val bartlett: WindowFunction = window(bartlettMemo)_
@@ -31,21 +32,20 @@ object Window {
   /** Symmetric ''Hann'' window function */
   val hann: WindowFunction = window(hannMemo)_
   
-  private[this] def window(w: Int => Seq[Double])(d: Seq[Double]) = 
-    (d, w(d.length)).zipped map { _ * _ }
+  private[this] def window(w: Int => SafeVector[Double])(d: SafeVector[Double]) = w(d.length) :* d
 
   private[this] lazy val bartlettMemo = immutableHashMapMemo {
     n: Int => {
       val scale = 2.0 / (n - 1)
       val factor = (n - 1) / 2.0
-      (0 until n) map { i => scale * (factor - abs(i - factor)) }
+      SafeVector.rangeMap(0, n) { i => scale * (factor - abs(i - factor)) }
     }
   }
   
   private[this] lazy val blackmanMemo = immutableHashMapMemo {
     n: Int => {
       val factor = 2.0 * Pi / (n - 1)
-      (0 until n) map { i => 0.42 - 0.5 * cos(factor * i) + 0.08 * cos(2.0 * factor * i) }
+      SafeVector.rangeMap(0, n) { i => 0.42 - 0.5 * cos(factor * i) + 0.08 * cos(2.0 * factor * i) }
     }
   }
 
@@ -58,7 +58,7 @@ object Window {
 
       val factor = 2.0 * Pi / (n - 1)
 
-      (0 until n) map { i => 
+      SafeVector.rangeMap(0, n) { i => 
         a0 - a1 * cos(factor * i) + a2 * cos(2.0 * factor * i) - a3 * cos(3.0 * factor * i) 
       }
     }
@@ -67,14 +67,14 @@ object Window {
   private[this] lazy val hammingMemo = immutableHashMapMemo {
     n: Int => {
       val factor = 2.0 * Pi / (n - 1)
-      (0 until n) map { i => 0.54 - 0.46 * cos(factor * i) }
+      SafeVector.rangeMap(0, n) { i => 0.54 - 0.46 * cos(factor * i) }
     }
   }
   
   private[this] lazy val hannMemo = immutableHashMapMemo {
     n: Int => {
       val factor = 2.0 * Pi / (n - 1)
-      (0 until n) map { i => 0.5 * (1 - cos(factor * i)) }
+      SafeVector.rangeMap(0, n) { i => 0.5 * (1 - cos(factor * i)) }
     }
   }
 }

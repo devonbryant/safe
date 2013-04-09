@@ -2,6 +2,7 @@ package safe.dsp
 
 import breeze.generic.UFunc
 import breeze.linalg._
+import safe.SafeVector
 import scala.math._
 import scalaz.Memo._
   
@@ -16,7 +17,7 @@ object MFCC {
            numCoeffs: Int = 13,
            melFilters: Int = 40,
            freqMin: Float = 130.0f,
-           freqMax: Float = 6854.0f): Seq[Double] => Seq[Double] = {
+           freqMax: Float = 6854.0f): SafeVector[Double] => SafeVector[Double] = {
     
     val melFilterBanks = melFilterMemo((frameSize, sampleFreq, melFilters, freqMin, freqMax))
     val dctMatrix = dctMatrixMemo((numCoeffs, melFilters))
@@ -25,8 +26,8 @@ object MFCC {
   }
   
   private[this] def mfccFunction(melFilterBanks: DenseMatrix[Double], 
-                                 dctMatrix: DenseMatrix[Double])(magSpecData: Seq[Double]) = {
-    val size = magSpecData.size
+                                 dctMatrix: DenseMatrix[Double])(magSpecData: SafeVector[Double]) = {
+    val size = magSpecData.length
     
     val magSpecVec = new DenseVector(magSpecData.toArray)
     
@@ -35,7 +36,7 @@ object MFCC {
     
     val melCeps = dctMatrix * melSpec
     
-    melCeps.toArray.toSeq
+    SafeVector(melCeps.toArray)
   }
   
   private[this] lazy val safeLog = UFunc{ (a: Double) => if (a > 0.0) log(a) else 0.0 }

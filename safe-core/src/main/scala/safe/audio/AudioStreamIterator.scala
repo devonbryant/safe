@@ -2,6 +2,7 @@ package safe.audio
 
 import javax.sound.sampled.{ AudioInputStream, UnsupportedAudioFileException }
 import java.nio.{ ByteBuffer, ByteOrder, ShortBuffer }
+import safe.SafeVector
 
 /**
  * An iterator for audio frames.  The iterator will automatically close the audio stream once all
@@ -11,7 +12,7 @@ import java.nio.{ ByteBuffer, ByteOrder, ShortBuffer }
 class AudioStreamIterator(
     stream: AudioInputStream, 
     frameSize: Int, 
-    stepSize: Int) extends Iterator[Seq[Double]] {
+    stepSize: Int) extends Iterator[SafeVector[Double]] {
   
   private[this] val format = stream.getFormat()
   
@@ -45,7 +46,7 @@ class AudioStreamIterator(
     else
       prevBuffer = read(nextBuffer())
     
-    data.toSeq
+    SafeVector(data)
   }
   
   // Conversion function (Bytes => Double) based on bit depth
