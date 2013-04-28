@@ -36,7 +36,7 @@ object MFCC {
     
     val melCeps = dctMatrix * melSpec
     
-    SafeVector(melCeps.toArray)
+    SafeVector(melCeps.data)
   }
   
   private[this] lazy val safeLog = UFunc{ (a: Double) => if (a > 0.0) log(a) else 0.0 }
