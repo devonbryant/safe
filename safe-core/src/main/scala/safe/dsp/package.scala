@@ -11,10 +11,5 @@ package object dsp {
     while (math.pow(2, i) < n) i += 1
     i
   }
-  
-  def expc(c: breeze.math.Complex) = {
-    val er = math.exp(c.real)
-    breeze.math.Complex(er * math.cos(c.imag), er * math.sin(c.imag))
-  }
                         
 }
