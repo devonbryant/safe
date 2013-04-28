@@ -51,15 +51,22 @@ object SafeVector {
   
 }
 
+/**
+ * Provides a specialized numeric (non-boxing) vector.  Only a handful of 
+ * common/useful methods for MIR/DSP are provided.
+ */
 trait SafeVector[@spec(Double, Float) A] {
   def apply(i: Int): A
   
+  /** Get a range view of the current vector */
   def apply(r: Range): SafeVector[A]
   
   def length: Int
   
+  /** Calculate the Hadamard (element-wise) product */
   def :*(other: SafeVector[A]): SafeVector[A]
   
+  /** Concatenate two vectors */
   def ++(other: SafeVector[A]): SafeVector[A]
   
   def foreach(f: A => Unit): Unit
@@ -69,6 +76,16 @@ trait SafeVector[@spec(Double, Float) A] {
   def toArray(): Array[A]
   
   def toSeq(): Seq[A]
+  
+  override def equals(other: Any): Boolean = other match {
+    case that: SafeVector[A] if (length == that.length) => {
+      for (i <- 0 until length) {
+        if (apply(i) != that(i)) return false
+      }
+      true
+    }
+    case _ => false
+  }
 }
 
 import SafeVector._
@@ -119,10 +136,8 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
   
   def toSeq() = toArray().toSeq
   
-  override def toString() = {
+  override def toString() =
     "SafeVector" + as.mkString("(", ",", ")")
-  }
-  
 }
 
 protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](as: SafeVector[A], r: Range) extends SafeVector[A] {
