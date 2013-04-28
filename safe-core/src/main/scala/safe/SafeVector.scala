@@ -21,11 +21,13 @@ object SafeVector {
     val arr = new Array[A](end - start)
     var i = start
     while (i < end) {
-      arr(i) = f(i)
+      arr(i - start) = f(i)
       i += 1
     }
     new ArraySafeVector(arr)
   }
+  
+  def apply[@spec(Double, Float) A:ClassTag:Numeric](as: A*): SafeVector[A] = new ArraySafeVector(as.toArray)
   
   def apply[@spec(Double, Float) A:ClassTag:Numeric](as: Array[A]): SafeVector[A] = new ArraySafeVector(as.clone)
   
@@ -51,9 +53,14 @@ object SafeVector {
 
 trait SafeVector[@spec(Double, Float) A] {
   def apply(i: Int): A
+  
+  def apply(r: Range): SafeVector[A]
+  
   def length: Int
   
   def :*(other: SafeVector[A]): SafeVector[A]
+  
+  def ++(other: SafeVector[A]): SafeVector[A]
   
   def foreach(f: A => Unit): Unit
   
@@ -69,6 +76,8 @@ import SafeVector._
 protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](as: Array[A]) extends SafeVector[A] {
   def apply(i: Int) = as(i)
   
+  def apply(r: Range): SafeVector[A] = new RangeViewVector(this, r)
+  
   val length = as.length
   
   def :*(other: SafeVector[A]) = {
@@ -78,6 +87,13 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
       arr(i) = as(i) * other(i)
       i += 1
     }
+    new ArraySafeVector(arr)
+  }
+  
+  def ++(other: SafeVector[A]) = {
+    val arr = new Array[A](length + other.length)
+    Array.copy(as, 0, arr, 0, length)
+    Array.copy(other.toArray, 0, arr, length, other.length)
     new ArraySafeVector(arr)
   }
   
@@ -105,6 +121,66 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
   
   override def toString() = {
     "SafeVector" + as.mkString("(", ",", ")")
+  }
+  
+}
+
+protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](as: SafeVector[A], r: Range) extends SafeVector[A] {
+  def apply(i: Int) = as(r(i))
+  
+  def apply(r: Range): SafeVector[A] = new RangeViewVector(this, r)
+  
+  val length = r.length
+  
+  def :*(other: SafeVector[A]) = {
+    val arr = new Array[A](length)
+    var i = 0
+    while (i < length) {
+      arr(i) = as(r(i)) * other(i)
+      i += 1
+    }
+    new ArraySafeVector(arr)
+  }
+  
+  def ++(other: SafeVector[A]) = {
+    val arr = new Array[A](length + other.length)
+    Array.copy(toArray, 0, arr, 0, length)
+    Array.copy(other.toArray, 0, arr, length, other.length)
+    new ArraySafeVector(arr)
+  }
+  
+  def foreach(f: A => Unit) {
+    var i = 0
+    while (i < length) {
+      f(as(r(i)))
+      i += 1
+    }
+  }
+  
+  def map[@spec(Double, Float) B:ClassTag:Numeric](f: A => B): SafeVector[B] = {
+    val bs = new Array[B](length)
+    var i = 0
+    while (i < length) {
+      bs(i) = f(as(r(i)))
+      i += 1
+    }
+    new ArraySafeVector(bs)
+  }
+  
+  def toArray() = {
+    val arr = new Array[A](length)
+    var i = 0
+    while (i < length) {
+      arr(i) = as(r(i))
+      i += 1
+    }
+    arr
+  }
+  
+  def toSeq() = toArray().toSeq
+  
+  override def toString() = {
+    "SafeVector" + toArray.mkString("(", ",", ")")
   }
   
 }
