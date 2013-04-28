@@ -199,12 +199,12 @@ object FFT {
   
   // Pad the end of the sequence with 0s to the nearest power of 2
   private[this] def padPow2[A:ClassTag:Numeric](data: SafeVector[A]) = {
-    val len = nextpow2(data.length)
+    val len = pow(2, nextpow2(data.length)).toInt
     SafeVector.zeroPad(data, len)
   }
   
   private[this] def padPow2[A:ClassTag:Numeric](data: Vector[A]) = {
-    val len = nextpow2(data.length)
+    val len = pow(2, nextpow2(data.length)).toInt
     if (len == data.length) data
     else {
       val zero = implicitly[Numeric[A]].zero
