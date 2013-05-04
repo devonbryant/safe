@@ -13,12 +13,14 @@ object CQT {
    *    "An Efficient Algorithm for the Calculation of a Constant Q Transform"
    *    Brown, J.C. and Puckette, M.S.
    *    J. Acoust. Soc. Am., 92(5): 2698-2701, 1992
+   *    
+   *  The CQT function expects the input to have already been run through a FFT
    */
   def cqt(sampleFreq: Float,    
           bpo: Int = 24,
           freqMax: Float = 12543.854f, // G10 (MIDI note 127)
           freqMin: Float = 16.351599f, // C1 (MIDI note 12)
-          thresh: Float = 0.0054f): SafeVector[Double] => SafeVector[Complex] = {
+          thresh: Float = 0.0054f): SafeVector[Complex] => SafeVector[Complex] = {
     
     val kern = cqtKern(sampleFreq, bpo, freqMax, freqMin, thresh)
     cqtFunction(kern)_
@@ -35,9 +37,8 @@ object CQT {
   def frameLength(sampleFreq: Float, bpo: Int, freqMin: Float) = 
     fftLength(qConstant(bpo), sampleFreq, freqMin)
   
-  private[this] def cqtFunction(kern: Matrix[Complex])(data: SafeVector[Double]) = {
-    val freqData = fft(DenseVector(data.toArray))
-    SafeVector((kern * freqData).toArray)
+  private[this] def cqtFunction(kern: Matrix[Complex])(data: SafeVector[Complex]) = {
+    SafeVector((kern * DenseVector(data.toArray)).toArray)
   }
   
   // Q = 1 / (2 ^ (1/12) - 1)
