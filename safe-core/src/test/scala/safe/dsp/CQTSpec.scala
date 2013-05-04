@@ -36,7 +36,7 @@ class CQTSpec extends SafeVectorMatchers
     val maxIndex = cqtData.toSeq.zipWithIndex.maxBy(_._1.abs)._2
     val maxFreq = freqs(maxIndex)
     
-    maxFreq should be (a440.toFloat plusOrMinus 0.001f)
+    maxFreq should be (a440.toFloat plusOrMinus 1e-3f)
   }
   
   it should "find multiple logarithmic spaced frequencies" in {
@@ -49,8 +49,8 @@ class CQTSpec extends SafeVectorMatchers
     // Find where the signal is strongest
     val sorted = cqtData.toSeq.zipWithIndex.sortBy(_._1.abs).reverse
     
-    val A_440 = a440.toFloat plusOrMinus 0.001f
-    val Middle_C = middleC.toFloat plusOrMinus 0.001f
+    val A_440 = a440.toFloat plusOrMinus 1e-3f
+    val Middle_C = middleC.toFloat plusOrMinus 1e-3f
     
     freqs(sorted(0)._2) should (be (Middle_C) or be (A_440))
     freqs(sorted(1)._2) should (be (Middle_C) or be (A_440))
