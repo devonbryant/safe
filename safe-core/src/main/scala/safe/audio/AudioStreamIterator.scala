@@ -19,7 +19,7 @@ class AudioStreamIterator(
   private[this] val bytesPerSample = format.getSampleSizeInBits() >> 3
   private[this] val numFrames = math.ceil(stream.getFrameLength().toDouble / stepSize.toDouble).toInt
   private[this] val order = if (format.isBigEndian()) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
-  private[this] val max = (2 << (format.getSampleSizeInBits() - 2)).toDouble
+  private[this] val max = (2 << (format.getSampleSizeInBits() - 2)).toDouble - 1.0
   private[this] val numChannels = format.getChannels()
   private[this] val divisor = max * numChannels
   
