@@ -20,17 +20,32 @@ object Window {
   /** Symmetric ''Bartlett'' window function */
   val bartlett: WindowFunction = window(bartlettMemo)_
   
+  /** Symmetric ''Bartlett'' window */
+  def bartlett(n: Int) = bartlettMemo(n)
+  
   /** Symmetric ''Blackman'' window function */
   val blackman: WindowFunction = window(blackmanMemo)_
+  
+  /** Symmetric ''Blackman'' window */
+  def blackman(n: Int) = blackmanMemo(n)
   
   /** Symmetric 4-term ''Blackman-Harris'' window function */
   val blackmanHarris: WindowFunction = window(blackmanHarrisMemo)_
   
+  /** Symmetric 4-term ''Blackman-Harris'' window */
+  def blackmanHarris(n: Int) = blackmanHarrisMemo(n)
+  
   /** Symmetric ''Hamming'' window function */
   val hamming: WindowFunction = window(hammingMemo)_
   
+  /** Symmetric ''Hamming'' window */
+  def hamming(n: Int) = hammingMemo(n)
+  
   /** Symmetric ''Hann'' window function */
   val hann: WindowFunction = window(hannMemo)_
+  
+  /** Symmetric ''Hann'' window */
+  def hann(n: Int) = hannMemo(n)
   
   private[this] def window(w: Int => SafeVector[Double])(d: SafeVector[Double]) = w(d.length) :* d
 
