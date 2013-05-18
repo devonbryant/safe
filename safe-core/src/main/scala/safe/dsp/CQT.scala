@@ -7,14 +7,16 @@ import breeze.math.Complex
 import safe.SafeVector
 import scala.math._
 
+/**
+ * Constant-Q transform function based on:
+ *    "An Efficient Algorithm for the Calculation of a Constant Q Transform"
+ *    Brown, J.C. and Puckette, M.S.
+ *    J. Acoust. Soc. Am., 92(5): 2698-2701, 1992
+ */
 object CQT {
   
-  /** Constant-Q transform function based on:
-   *    "An Efficient Algorithm for the Calculation of a Constant Q Transform"
-   *    Brown, J.C. and Puckette, M.S.
-   *    J. Acoust. Soc. Am., 92(5): 2698-2701, 1992
-   *    
-   *  The CQT function expects the input to have already been run through a FFT
+  /** 
+   * The CQT function expects the input to have already been run through a FFT
    */
   def cqt(sampleFreq: Float,    
           bpo: Int = 24,
@@ -37,8 +39,8 @@ object CQT {
   def frameLength(sampleFreq: Float, bpo: Int, freqMin: Float) = 
     fftLength(qConstant(bpo), sampleFreq, freqMin)
   
-  private[this] def cqtFunction(kern: Matrix[Complex])(data: SafeVector[Complex]) = {
-    SafeVector((kern * DenseVector(data.toArray)).toArray)
+  private[this] def cqtFunction(kern: DenseMatrix[Complex])(data: SafeVector[Complex]) = {
+    SafeVector((kern * DenseVector(data.toArray)).data)
   }
   
   // Q = 1 / (2 ^ (1/12) - 1)
@@ -57,7 +59,7 @@ object CQT {
                             bpo: Int,
                             freqMax: Float,
                             freqMin: Float,
-                            thresh: Float): Matrix[Complex] = {
+                            thresh: Float): DenseMatrix[Complex] = {
     val Q = qConstant(bpo)
     val K = numKernels(bpo, freqMax, freqMin)
     val fftLen = fftLength(Q, sampleFreq, freqMin)
