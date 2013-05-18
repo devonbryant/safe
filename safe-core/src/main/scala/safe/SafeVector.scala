@@ -49,6 +49,31 @@ object SafeVector {
     }
   }
   
+  def zipWith[@spec(Double, Float) A:ClassTag:Numeric](as1: SafeVector[A], as2: SafeVector[A])
+      (f: (A, A) => A) = {
+    require(as1.length == as2.length)
+    
+    val arr = new Array[A](as1.length)
+    var i = 0
+    while (i < as1.length) {
+      arr(i) = f(as1(i), as2(i))
+      i += 1
+    }
+    new ArraySafeVector(arr)
+  }
+  
+  def zipWith[@spec(Double, Float) A:ClassTag:Numeric](as1: SafeVector[A], as2: SafeVector[A], as3: SafeVector[A])
+      (f: (A, A, A) => A) = {
+    require(as1.length == as2.length)
+    
+    val arr = new Array[A](as1.length)
+    var i = 0
+    while (i < as1.length) {
+      arr(i) = f(as1(i), as2(i), as3(i))
+      i += 1
+    }
+    new ArraySafeVector(arr)
+  }
 }
 
 /**
@@ -66,12 +91,29 @@ trait SafeVector[@spec(Double, Float) A] {
   /** Calculate the Hadamard (element-wise) product */
   def :*(other: SafeVector[A]): SafeVector[A]
   
+  /** Vector addition */
+  def +(other: SafeVector[A]): SafeVector[A]
+  
+  /** Vector subtraction */
+  def -(other: SafeVector[A]): SafeVector[A]
+  
   /** Concatenate two vectors */
   def ++(other: SafeVector[A]): SafeVector[A]
   
   def foreach(f: A => Unit): Unit
   
+  /** Get the index of the first occurrence that satisifies the predicate, or -1 */
+  def indexOf(f: A => Boolean): Int
+  
   def map[@spec(Double, Float) B:ClassTag:Numeric](f: A => B): SafeVector[B]
+  
+  def foldLeft[@spec(Double, Float) B:ClassTag:Numeric](z: B)(f: (B, A) => B): B
+  
+  def max: A
+  
+  def min: A
+  
+  def sum: A
   
   def toArray(): Array[A]
   
@@ -97,15 +139,11 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
   
   val length = as.length
   
-  def :*(other: SafeVector[A]) = {
-    val arr = new Array[A](length)
-    var i = 0
-    while (i < length) {
-      arr(i) = as(i) * other(i)
-      i += 1
-    }
-    new ArraySafeVector(arr)
-  }
+  def :*(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ * _ }
+  
+  def +(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ + _ }
+  
+  def -(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ - _ }
   
   def ++(other: SafeVector[A]) = {
     val arr = new Array[A](length + other.length)
@@ -122,6 +160,14 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
     }
   }
   
+  def indexOf(f: A => Boolean) = {
+    var i = 0
+    while (i < length && !f(as(i))) {
+      i += 1
+    }
+    if (i == length) -1 else i
+  }
+  
   def map[@spec(Double, Float) B:ClassTag:Numeric](f: A => B): SafeVector[B] = {
     val bs = new Array[B](length)
     var i = 0
@@ -131,6 +177,22 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
     }
     new ArraySafeVector(bs)
   }
+  
+  def foldLeft[@spec(Double, Float) B:ClassTag:Numeric](z: B)(f: (B, A) => B) = {
+    var acc = z
+    var i = 0
+    while (i < length) {
+      acc = f(acc, as(i))
+      i += 1
+    }
+    acc
+  }
+  
+  def max = as.max
+  
+  def min = as.min
+  
+  def sum = as.sum
   
   def toArray() = as.clone
   
@@ -147,15 +209,11 @@ protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](a
   
   val length = r.length
   
-  def :*(other: SafeVector[A]) = {
-    val arr = new Array[A](length)
-    var i = 0
-    while (i < length) {
-      arr(i) = as(r(i)) * other(i)
-      i += 1
-    }
-    new ArraySafeVector(arr)
-  }
+  def :*(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ * _ }
+  
+  def +(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ + _ }
+  
+  def -(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ - _ }
   
   def ++(other: SafeVector[A]) = {
     val arr = new Array[A](length + other.length)
@@ -172,6 +230,14 @@ protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](a
     }
   }
   
+  def indexOf(f: A => Boolean) = {
+    var i = 0
+    while (i < length && !f(as(r(i)))) {
+      i += 1
+    }
+    if (i == length) -1 else i
+  }
+  
   def map[@spec(Double, Float) B:ClassTag:Numeric](f: A => B): SafeVector[B] = {
     val bs = new Array[B](length)
     var i = 0
@@ -180,6 +246,40 @@ protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](a
       i += 1
     }
     new ArraySafeVector(bs)
+  }
+  
+  def foldLeft[@spec(Double, Float) B:ClassTag:Numeric](z: B)(f: (B, A) => B) = {
+    var acc = z
+    var i = 0
+    while (i < length) {
+      acc = f(acc, as(r(i)))
+      i += 1
+    }
+    acc
+  }
+  
+  def max = {
+    require(length > 0)
+    val num = implicitly[Numeric[A]]
+    foldLeft(as(0)) { (acc, a) =>
+      if (num.gt(a, acc)) a else acc  
+    }
+  }
+  
+  def min = {
+    require(length > 0)
+    val num = implicitly[Numeric[A]]
+    foldLeft(as(0)) { (acc, a) =>
+      if (num.lt(a, acc)) a else acc  
+    }
+  }
+  
+  def sum = {
+    require(length > 0)
+    val num = implicitly[Numeric[A]]
+    foldLeft(num.zero) { (acc, a) =>
+      acc + a  
+    }
   }
   
   def toArray() = {
