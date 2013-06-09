@@ -16,6 +16,14 @@ import scalaz.Memo._
 object Window {
   
   type WindowFunction = SafeVector[Double] => SafeVector[Double]
+  
+  def window(windowType: String, n: Int) = windowType match {
+    case "bartlett" => bartlett(n)
+    case "blackman" => blackman(n)
+    case "blackmanHarris" => blackmanHarris(n)
+    case "hamming" => hamming(n)
+    case "hann" => hann(n)
+  }
 
   /** Symmetric ''Bartlett'' window function */
   val bartlett: WindowFunction = window(bartlettMemo)_
