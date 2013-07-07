@@ -175,7 +175,11 @@ case class CQT(sampleRate: Float,
 case class MFCC(sampleRate: Float,
                 frameSize: Int = Defaults.frameSize,
                 stepSize: Int = Defaults.stepSize,
-                windowType: String = Defaults.windowType) extends Feature {
+                windowType: String = Defaults.windowType,
+                numCoeffs: Int = 13,
+                melFilters: Int = 40,
+                freqMin: Float = 130.0f,
+                freqMax: Float = 6854.0f) extends Feature {
   lazy val dataflow = Dataflow(
     List[Feature](Input(sampleRate),
       Frame(sampleRate, frameSize, stepSize),
