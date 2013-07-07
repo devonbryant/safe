@@ -1,4 +1,4 @@
-name := "safe-core"
+name := "safe"
 
 libraryDependencies ++= Seq(
   "org.scalaz"        %% "scalaz-core"  % "7.0.0",
