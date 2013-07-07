@@ -16,7 +16,7 @@ import scala.collection.mutable
 object SpectralOnsetDetection {
   
   /**
-   * Calculate the note onsets (in seconds) from a 
+   * Calculate the note onsets (in seconds) from a sequence of note activations (spectral flux) 
    */
   def onsets(sampleFreq: Float, 
              stepSize: Int, 
