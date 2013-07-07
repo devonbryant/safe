@@ -29,4 +29,13 @@ object TextFeatureWriter {
     fmt.setMinimumFractionDigits(n)
     Writeable.of[A, String] { a => fmt.format(a) }
   }
+  
+  def complexPrecisionFmtWriteable(n: Int): Writeable[breeze.math.Complex, String] = {
+    val fmt = new java.text.DecimalFormat()
+    fmt.setMaximumFractionDigits(n)
+    fmt.setMinimumFractionDigits(n)
+    Writeable.of[breeze.math.Complex, String] { a => 
+      fmt.format(a.real) + " + " + fmt.format(a.imag) + "i"
+    }
+  }
 }

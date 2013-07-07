@@ -1,4 +1,4 @@
-package safe.audio
+package safe.io
 
 import javax.sound.sampled.{ AudioInputStream, UnsupportedAudioFileException }
 import java.nio.{ ByteBuffer, ByteOrder, ShortBuffer }

@@ -1,7 +1,6 @@
 package safe.audio
 
 import breeze.math.Complex
-
 import safe.SafeVector
 import safe.io._
 import safe.dsp._
@@ -9,12 +8,10 @@ import Window._
 import FFT._
 import MFCC._
 import PowerSpectrum._
-
 import scala.util._
 import scala.concurrent._
 import duration._
 import util._
-
 import ExecutionContext.Implicits.global
 
 object AudioTest extends App {

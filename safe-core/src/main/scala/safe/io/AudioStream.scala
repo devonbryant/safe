@@ -1,4 +1,4 @@
-package safe.audio
+package safe.io
 
 import javax.sound.sampled.{ AudioFormat, AudioInputStream, AudioSystem }
 
