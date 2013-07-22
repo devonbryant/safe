@@ -5,12 +5,14 @@ import safe.io.{ CSVFeatureWriter, TextFeatureWriter, Writeable }
 import scala.collection.mutable
 import scala.util.{ Failure, Try }
 
-class CSVWriteActor(outputDir: String, precision: Int) extends Actor with ActorLogging {
+class CSVWriteActor(outputDir: String, 
+                    precision: Int, 
+                    delim: String = ",") extends Actor with ActorLogging {
   
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](precision)
   implicit val cmplxWriteable = TextFeatureWriter.complexPrecisionFmtWriteable(precision)
-  implicit val doubVecWriteable = CSVFeatureWriter.delimWriteable(",")(doubWriteable)
-  implicit val cmplxVecWriteable = CSVFeatureWriter.delimWriteable(",")(cmplxWriteable)
+  implicit val doubVecWriteable = CSVFeatureWriter.delimWriteable(delim)(doubWriteable)
+  implicit val cmplxVecWriteable = CSVFeatureWriter.delimWriteable(delim)(cmplxWriteable)
   
   val writers = new mutable.HashMap[String, AggregateWriter[String]]
   
