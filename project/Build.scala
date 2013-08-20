@@ -5,7 +5,7 @@ object SafeBuild extends Build {
   val commonSettings = Seq(
     version := "0.1",
 
-    scalaVersion := "2.10.1",
+    scalaVersion := "2.10.2",
 
     resolvers ++= Seq(
       "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
