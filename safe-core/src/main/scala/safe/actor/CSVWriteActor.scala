@@ -5,9 +5,11 @@ import safe.io.{ CSVFeatureWriter, TextFeatureWriter, Writeable }
 import scala.collection.mutable
 import scala.util.{ Failure, Try }
 
-class CSVWriteActor(outputDir: String, 
+class CSVWriteActor(outputDir: String,
+                    featName: String,
                     precision: Int, 
-                    delim: String = ",") extends Actor with ActorLogging {
+                    delim: String,
+                    next: ActorRef) extends Actor with ActorLogging {
   
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](precision)
   implicit val cmplxWriteable = TextFeatureWriter.complexPrecisionFmtWriteable(precision)
@@ -20,14 +22,14 @@ class CSVWriteActor(outputDir: String,
   val outDirPath = if (outputDir.endsWith(pathSep)) outputDir else outputDir + pathSep
   
   def receive = {
-    case RealFeatureFrame(inName, featName, data, idx, total) => {
-      write(inName + "." + featName, idx, total, data) match {
+    case RealFeatureFrame(inName, data, idx, total) => {
+      write(inName, idx, total, data) match {
         case Failure(exc) => log.error(exc, "Error writing " + inName + " frame " + idx)
         case _ => // Successfully wrote feature frame
       }
     }
-    case ComplexFeatureFrame(inName, featName, data, idx, total) => {
-      write(inName + "." + featName, idx, total, data) match {
+    case ComplexFeatureFrame(inName, data, idx, total) => {
+      write(inName, idx, total, data) match {
         case Failure(exc) => log.error(exc, "Error writing " + inName + " frame " + idx)
         case _ => // Successfully wrote feature frame
       }
@@ -37,13 +39,13 @@ class CSVWriteActor(outputDir: String,
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
     val writer = writers.getOrElseUpdate(
-        name, AggregateWriter(name, total, TextFeatureWriter(outDirPath + name + ".csv")))
+        name, AggregateWriter(name, total, TextFeatureWriter(outDirPath + name + "." + featName + ".csv")))
     
     val result = writer.write(idx, a)
     if (writer.finished) {
       writer.close()
       writers -= name
-//      context.system.shutdown()
+      next ! FinishedWrite(name, featName)
     }
     result
   }

@@ -4,6 +4,7 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.routing.RoundRobinRouter
 import breeze.math.Complex
 import safe.actor._
+import safe.feature._
 import safe.io.LocalFileAudioIn
 
 object ExtractionActorsTest extends App {
@@ -16,24 +17,40 @@ object ExtractionActorsTest extends App {
   val frameSize = 1024
   val stepSize = 1024
   
-//  val csv = system.actorOf(Props(new CSVWriteActor("../../../datasets/mir/out/", 4)))
-//  val mfcc = system.actorOf(Props(new MFCCActor(sampleRate, frameSize: Int, 13, 40, 130.0f, 6854.0f, csv)).withRouter(RoundRobinRouter(nrOfInstances = 4)))
-//  val mag = system.actorOf(Props(new MagnitudeSpectrumActor(mfcc)).withRouter(RoundRobinRouter(nrOfInstances = 4)))
-//  val fft = system.actorOf(Props(new FFTActor(mag)).withRouter(RoundRobinRouter(nrOfInstances = 4)))
-//  val hann = system.actorOf(Props(new WindowActor(frameSize, "hann", fft)).withRouter(RoundRobinRouter(nrOfInstances = 4)))
-//  val frame = system.actorOf(Props(new FrameActor(frameSize, stepSize, hann)))
-  val csv = system.actorOf(Props(new CSVWriteActor("../../../datasets/mir/out/", 4)))
-  val mfcc = system.actorOf(Props(new MFCCActor(sampleRate, frameSize: Int, 13, 40, 130.0f, 6854.0f, csv)))
-  val mag = system.actorOf(Props(new MagnitudeSpectrumActor(mfcc)))
-  val fft = system.actorOf(Props(new FFTActor(mag)))
-  val hann = system.actorOf(Props(new WindowActor(frameSize, "hann", fft)))
-  val frame = system.actorOf(Props(new FrameActor(frameSize, stepSize, hann)))
+  class FinishActor extends Actor {
+    val total = 10;
+    var count = 0;
+    def receive = {
+      case FinishedWrite(name, feat) => {
+        println("Finished writing " + feat + " feature for " + name)
+        count += 1
+        if (count >= total)
+          context.system.shutdown()
+      }
+    }
+  }
+  
+  val feature = CSVOut("../../../datasets/mir/out/",
+                       MFCC(sampleRate, frameSize, stepSize),
+                       "mfcc_test", 4, ",")
+                       
+  val plan = FeatureExtraction.plan(feature.dataflow)
+  
+  val actorTree = FeatureActors.actorTree(plan, system.actorOf(Props[FinishActor]), 2)(system)
   
   runActors()
   
   def runActors() = {
-    frame ! new LocalFileAudioIn(
-        "../../../datasets/mir/audio/key detection/aiff/beatles/01 - A Hard Day's Night.aiff")
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/one.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/two.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/three.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/four.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/five.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/one copy.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/two copy.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/three copy.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/four copy.aiff"
+    actorTree ! "../../../datasets/mir/audio/key detection/aiff/five copy.aiff"
     
     system.awaitTermination()
   

@@ -3,7 +3,9 @@ package safe.feature
 /**
  * Data type representing dataflow as a sequence of other features
  */
-case class Dataflow(sequence: Seq[Feature])
+case class Dataflow(sequence: Seq[Feature]) {
+  def ++(other: Dataflow) = Dataflow(sequence ++ other.sequence)
+}
 
 /**
  * Base trait for features, each feature must be represented as a sequence/flow
@@ -21,6 +23,14 @@ object Defaults {
   val frameSize = 1024
   val stepSize = 512
   val windowType = "hann"
+}
+
+case class CSVOut(outputDir: String,
+                  feature: Feature,
+                  featName: String,
+                  precision: Int,
+                  delim: String = ",") extends Feature {
+  val dataflow = feature.dataflow ++ Dataflow(List(this))
 }
 
 /** Represents an audio input read */
