@@ -62,10 +62,6 @@ object FFT {
     DenseVector(complex)
   }
 
-  /** Calculate the FFT frequency bins for a given frame size and sample rate */
-  def fftFreqs(size: Int, sampleRate: Float): Seq[Double] =
-    fftFreqMemo((size, sampleRate))
-
   private[this] def fft(real: Array[Double], imag: Array[Double]): Array[Complex] = {
     inPlaceFFT(real, imag)
     val complex = new Array[Complex](real.length)
@@ -229,13 +225,4 @@ object FFT {
   // Wn real and imaginary coefficients
   private[this] lazy val W_SUB_N_R = (0 to 64) map { i => cos(2 * Pi / pow(2, i)) }
   private[this] lazy val W_SUB_N_I = (0 to 64) map { i => -sin(2 * Pi / pow(2, i)) }
-
-  private[this] lazy val fftFreqMemo = immutableHashMapMemo {
-    a: (Int, Float) =>
-      {
-        val (size, sampleRate) = a
-        val factor = sampleRate.toDouble / size.toDouble
-        (0 until size) map { factor * _ }
-      }
-  }
 }
