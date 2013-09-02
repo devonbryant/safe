@@ -8,7 +8,11 @@ import scalaz.Memo._
   
 /**
  * Functions for calculating the Mel-Frequency Cepstral Coefficients from
- * the magnitude spectrum of a signal
+ * the magnitude spectrum of a signal.  Algorithm based on:
+ * 
+ *   1. "Comparison of parametric representations for monosyllabic word recognition in continuously spoken sentences"
+ *      S.B. Davis and P.Mermelstrin
+ *      IEEE Transactions on Acoustics, Speech and Signal Processing, 28 :357-366, 1980
  */
 object MFCC {
   
