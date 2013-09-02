@@ -17,6 +17,9 @@ trait FeatureActor[A <: Feature] {
   def actorFor(feature: A, system: ActorSystem, next: ActorRef, pool: Int = 1): ActorRef
 }
 
+/**
+ * Functions for creating Actor Trees based on Feature Extraction Plans
+ */
 object FeatureActors {
 
   def actorTree(plan: Plan, finishListener: ActorRef, poolSize: Int = 1)(implicit sys: ActorSystem): ActorRef = {
@@ -111,10 +114,8 @@ object FeatureActors {
     pool(system, Props(new TransformActor(next, fft)), poolSize)
   }
 
-  private[this] lazy val mag: SafeVector[Complex] => SafeVector[Double] = dsp.PowerSpectrum.magnitude
-
   private[this] def magSpecActor(feature: MagnitudeSpectrum, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    pool(system, Props(new TransformActor(next, liftCD(mag))), poolSize)
+    pool(system, Props(new TransformActor(next, liftCD(dsp.PowerSpectrum.magnitude))), poolSize)
   }
 
   private[this] def mfccActor(feature: MFCC, system: ActorSystem, next: ActorRef, poolSize: Int) = {
@@ -126,6 +127,10 @@ object FeatureActors {
       feature.freqMax)
 
     pool(system, Props(new TransformActor(next, liftDD(mfcc))), poolSize)
+  }
+  
+  private[this] def specShapeActor(feature: SpectralShape, system: ActorSystem, next: ActorRef, poolSize: Int) = {
+    pool(system, Props(new TransformActor(next, liftDD(dsp.SpectralShape.statistics))), poolSize)
   }
 
   // TODO There is a lot of duplication between the feature frames that could be abstracted

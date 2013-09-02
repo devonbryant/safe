@@ -200,6 +200,23 @@ case class MFCC(sampleRate: Float,
 }
 
 /**
+ * Spectral Shape Statistics
+ * {{{ In -> Frame -> Window -> FFT -> Magnitude -> SpectralShape }}}
+ */
+case class SpectralShape(sampleRate: Float,
+                         frameSize: Int = Defaults.frameSize,
+                         stepSize: Int = Defaults.stepSize,
+                         windowType: String = Defaults.windowType) extends Feature {
+  lazy val dataflow = Dataflow(
+    List[Feature](Input(sampleRate),
+      Frame(sampleRate, frameSize, stepSize),
+      Window(sampleRate, frameSize, stepSize, windowType),
+      FFT(sampleRate, frameSize, stepSize, windowType),
+      MagnitudeSpectrum(sampleRate, frameSize, stepSize, windowType),
+      this))
+}
+
+/**
  * Spectral Flux between frames
  * {{{ In -> Frame -> Window -> FFT -> Magnitude -> SpectralFlux }}}
  */
