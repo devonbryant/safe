@@ -41,6 +41,7 @@ object FeatureActors {
    */
   def actorFor[A <: Feature](feature: A, next: ActorRef, poolSize: Int)(implicit sys: ActorSystem): ActorRef = {
     feature match {
+      case Resequence => reseqActor(sys, next)
       case feat: CSVOut => csvActor(feat, sys, next)
       case feat: Input => inputActor(feat, sys, next, poolSize)
       case feat: Frame => frameActor(feat, sys, next, poolSize)
@@ -61,6 +62,14 @@ object FeatureActors {
   def pool(system: ActorSystem, props: Props, size: Int): ActorRef = {
     if (size == 1) system.actorOf(props)
     else system.actorOf(props.withRouter(RoundRobinRouter(nrOfInstances = size)))
+  }
+  
+  private[this] lazy val seqF: FeatureFrame[_] => SeqMetadata = (a) => {
+    SeqMetadata(a.inputName, a.index, a.total)
+  }
+  
+  private[this] def reseqActor(system: ActorSystem, next: ActorRef) = {
+    system.actorOf(Props(new ResequenceActor(next, seqF)))
   }
 
   private[this] def csvActor(feature: CSVOut, system: ActorSystem, next: ActorRef) = {

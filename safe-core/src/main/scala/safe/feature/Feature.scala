@@ -25,12 +25,16 @@ object Defaults {
   val windowType = "hann"
 }
 
+object Resequence extends Feature {
+  val dataflow = Dataflow(Nil)
+}
+
 case class CSVOut(outputDir: String,
                   feature: Feature,
                   featName: String,
                   precision: Int,
                   delim: String = ",") extends Feature {
-  val dataflow = feature.dataflow ++ Dataflow(List(this))
+  val dataflow = feature.dataflow ++ Dataflow(List[Feature](Resequence, this))
 }
 
 /** Represents an audio input read */

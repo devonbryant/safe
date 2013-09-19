@@ -16,7 +16,7 @@ class CSVWriteActor(outputDir: String,
   implicit val doubVecWriteable = CSVFeatureWriter.delimWriteable(delim)(doubWriteable)
   implicit val cmplxVecWriteable = CSVFeatureWriter.delimWriteable(delim)(cmplxWriteable)
   
-  val writers = new mutable.HashMap[String, AggregateWriter[String]]
+  val writers = new mutable.HashMap[String, TextFeatureWriter]
   
   val pathSep = java.nio.file.FileSystems.getDefault().getSeparator()
   val outDirPath = if (outputDir.endsWith(pathSep)) outputDir else outputDir + pathSep
@@ -39,10 +39,10 @@ class CSVWriteActor(outputDir: String,
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
     val writer = writers.getOrElseUpdate(
-        name, AggregateWriter(name, total, TextFeatureWriter(outDirPath + name + "." + featName + ".csv")))
+        name, TextFeatureWriter(outDirPath + name + "." + featName + ".csv"))
     
-    val result = writer.write(idx, a)
-    if (writer.finished) {
+    val result = writer.write(a)
+    if (idx == total) {
       writer.close()
       writers -= name
       next ! FinishedWrite(name, featName)
