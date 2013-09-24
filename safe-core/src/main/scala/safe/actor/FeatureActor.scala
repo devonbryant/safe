@@ -34,8 +34,6 @@ trait FeatureActor extends Actor {
            featAct <- featureActor(plan.feat, finishListener, existing, poolSize)) {
         val cache = if (reuse(plan.feat)) existing + ((plan.feat, featAct)) else existing
         
-        println(cache)
-        
         featAct ! Create(id, plan.next, creationListener, finishListener, cache, poolSize)
         addListener(featAct)
         
@@ -50,7 +48,6 @@ trait FeatureActor extends Actor {
                            cache: Map[Feature, ActorRef], 
                            poolSize: Int) = {
     if (cache.contains(feat)) {
-      println("Using cached version " + feat)
       cache.get(feat)
     }
     else feat match {

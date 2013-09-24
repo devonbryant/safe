@@ -64,7 +64,7 @@ object SafeVector {
   
   def zipWith[@spec(Double, Float) A:ClassTag:Numeric](as1: SafeVector[A], as2: SafeVector[A], as3: SafeVector[A])
       (f: (A, A, A) => A) = {
-    require(as1.length == as2.length)
+    require(as1.length == as2.length && as1.length == as3.length)
     
     val arr = new Array[A](as1.length)
     var i = 0

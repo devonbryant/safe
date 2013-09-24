@@ -38,7 +38,7 @@ class ExtractionActor extends FeatureActor {
           AggregateActor.props(new FeatureFinishAggregator(id, total), finishListener))
       
       // Create the feature extraction actor hierarchy
-      self ! Create(id, Seq(plan), self, featFinishListener, Map.empty, 2)
+      self ! Create(id, Seq(plan), self, featFinishListener)
       
     }
     case Created(id, feat) => {
