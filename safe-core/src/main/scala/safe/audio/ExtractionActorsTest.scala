@@ -18,39 +18,27 @@ object ExtractionActorsTest extends App {
   val stepSize = 1024
   
   class FinishActor extends Actor {
-    val total = 10;
-    var count = 0;
     def receive = {
-      case FinishedWrite(name, feat) => {
-        println("Finished writing " + feat + " feature for " + name)
-        count += 1
-        if (count >= total)
-          context.system.shutdown()
+      case FinishedPlan(id) => {
+        println("Finished plan " + id)
+        context.system.shutdown()
       }
     }
   }
   
-  val feature = CSVOut("../../../datasets/mir/out/",
+  val feature = CSVOut("../../../test/",
                        MFCC(sampleRate, frameSize, stepSize),
                        "mfcc_test", 4, ",")
                        
   val plan = FeatureExtraction.plan(feature.dataflow)
   
-  val actorTree = FeatureActors.actorTree(plan, system.actorOf(Props[FinishActor]), 2)(system)
-  
   runActors()
   
   def runActors() = {
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/one.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/two.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/three.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/four.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/five.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/one copy.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/two copy.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/three copy.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/four copy.aiff"
-    actorTree ! "../../../datasets/mir/audio/key detection/aiff/five copy.aiff"
+    val planActor = system.actorOf(ExtractionActor.props())
+    val listener = system.actorOf(Props(classOf[FinishActor]))
+    
+    planActor ! RunExtraction("mfcc", plan, listener, "../../../test/")
     
     system.awaitTermination()
   

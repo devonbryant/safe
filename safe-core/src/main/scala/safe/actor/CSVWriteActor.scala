@@ -1,6 +1,6 @@
 package safe.actor
 
-import akka.actor.{ Actor, ActorRef, ActorLogging }
+import akka.actor.{ ActorRef, Props, Status }
 import safe.io.{ CSVFeatureWriter, TextFeatureWriter, Writeable }
 import scala.collection.mutable
 import scala.util.{ Failure, Try }
@@ -9,7 +9,7 @@ class CSVWriteActor(outputDir: String,
                     featName: String,
                     precision: Int, 
                     delim: String,
-                    next: ActorRef) extends Actor with ActorLogging {
+                    finishListener: ActorRef) extends FeatureActor {
   
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](precision)
   implicit val cmplxWriteable = TextFeatureWriter.complexPrecisionFmtWriteable(precision)
@@ -21,20 +21,23 @@ class CSVWriteActor(outputDir: String,
   val pathSep = java.nio.file.FileSystems.getDefault().getSeparator()
   val outDirPath = if (outputDir.endsWith(pathSep)) outputDir else outputDir + pathSep
   
-  def receive = {
+  addListener(finishListener)
+  
+  def extract = {
     case RealFeatureFrame(inName, data, idx, total) => {
       write(inName, idx, total, data) match {
-        case Failure(exc) => log.error(exc, "Error writing " + inName + " frame " + idx)
+        case Failure(exc) => sender ! Status.Failure(
+            new RuntimeException(self.path.toString + " failed writing " + inName + " frame " + idx, exc))
         case _ => // Successfully wrote feature frame
       }
     }
     case ComplexFeatureFrame(inName, data, idx, total) => {
       write(inName, idx, total, data) match {
-        case Failure(exc) => log.error(exc, "Error writing " + inName + " frame " + idx)
+        case Failure(exc) => sender ! Status.Failure(
+            new RuntimeException(self.path.toString + " failed writing " + inName + " frame " + idx, exc))
         case _ => // Successfully wrote feature frame
       }
     }
-    case msg => log.warning("Unable to process message " + msg)
   }
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
@@ -45,8 +48,14 @@ class CSVWriteActor(outputDir: String,
     if (idx == total) {
       writer.close()
       writers -= name
-      next ! FinishedWrite(name, featName)
+      broadcast(FinishedFeature(name, featName))
     }
     result
   }
+  
+}
+
+object CSVWriteActor {
+  def props(outputDir: String, featName: String, precision: Int, delim: String, finishListener: ActorRef) =
+    Props(classOf[CSVWriteActor], outputDir, featName, precision, delim, finishListener)
 }

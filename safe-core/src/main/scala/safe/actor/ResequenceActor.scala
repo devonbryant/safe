@@ -1,9 +1,9 @@
 package safe.actor
 
-import akka.actor.{ Actor, ActorRef, ActorLogging }
+import akka.actor.{ ActorRef, Props, Status }
 import scala.collection.mutable
 
-class ResequenceActor[A](next: ActorRef, f: A => SeqMetadata) extends Actor with ActorLogging {
+class ResequenceActor[A](f: A => SeqMetadata, listeners: ActorRef*) extends FeatureActor {
   
   // Used to keep track of the last number processed in the sequence
   private[this] val sequenceCounts = new mutable.HashMap[String, Int]()
@@ -11,7 +11,9 @@ class ResequenceActor[A](next: ActorRef, f: A => SeqMetadata) extends Actor with
   // Queue of messages waiting for an earlier number in the sequence to be released
   private[this] val queuedMessages = new mutable.HashMap[String, mutable.Map[Int, A]]()
   
-  def receive = {
+  listeners foreach { l => addListener(l) }
+  
+  def extract = {
     case a: A =>
       try {
         f(a) match {
@@ -21,12 +23,12 @@ class ResequenceActor[A](next: ActorRef, f: A => SeqMetadata) extends Actor with
             
             if (nextNum == num) {
               // This is the next item in the sequence, forward it on
-              next ! a
+              broadcast(a)
               nextNum += 1
               
               // Release any queued messages that are next in the sequence
               while(queue.contains(nextNum)) {
-                next ! queue(nextNum)
+                broadcast(queue(nextNum))
                 queue.remove(nextNum)
                 nextNum += 1
               }
@@ -47,9 +49,16 @@ class ResequenceActor[A](next: ActorRef, f: A => SeqMetadata) extends Actor with
         }
       }
       catch {
-        case _: Throwable => log.error("Unable to process message " + a)
+        case e: Throwable => sender ! Status.Failure(
+            new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
   }
+  
 }
 
 case class SeqMetadata(id: String, num: Int, total: Int)
+
+object ResequenceActor {
+  def props[A](f: A => SeqMetadata, listeners: ActorRef*) = 
+    Props(classOf[ResequenceActor[A]], f, listeners)
+}

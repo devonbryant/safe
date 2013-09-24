@@ -13,6 +13,16 @@ object FeatureExtraction {
   val empty = Plan(NoFeature)
   
   /**
+   * Count the number of features (leaf nodes) in a plan
+   */
+  def featureCount(plan: Plan): Int = plan match {
+    case Plan(_, Nil) => 1
+    case Plan(_, plans) => plans.foldLeft(0) { 
+      (count, p) => count + featureCount(p) 
+    }
+  }
+  
+  /**
    * Create a linear feature extraction plan for a single feature's data flow
    */
   def plan(fd: Dataflow): Plan = fd.sequence.foldRight(empty) { 

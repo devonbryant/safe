@@ -1,95 +1,128 @@
 package safe.actor
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{ Actor, ActorContext, ActorRef, ActorSelection, ActorSystem, Props }
 import akka.routing.{ BroadcastRouter, RoundRobinRouter }
 import breeze.math.Complex
 import safe.SafeVector
 import safe.dsp
 import safe.feature._
-import safe.io.{ AudioIn, AudioStreamIterator }
+import safe.io.{ AudioIn, AudioStreamIterator, LocalFileAudioIn }
 import javax.sound.sampled.AudioSystem
-import safe.io.LocalFileAudioIn
+import scala.collection.mutable
 
-/**
- * Provides a typeclass interface to create actors for a given feature
- */
-trait FeatureActor[A <: Feature] {
-  def actorFor(feature: A, system: ActorSystem, next: ActorRef, pool: Int = 1): ActorRef
+trait FeatureActor extends Actor {
+  import FeatureActor._
+  
+  private val listeners = new mutable.HashSet[ActorRef]()
+  
+  def addListener(l: ActorRef) = listeners += l
+  def removeListener(l: ActorRef) = listeners -= l
+  
+  def broadcast(msg: Any) = listeners foreach { _ ! msg }
+  
+  def extract: Receive
+  
+  def receive = createPlans orElse extract
+  
+  // Create any feature actors at the current level of the plan tree and add them as listeners
+  // If any child features (next features in the dataflow graph) exist, send messages to the
+  // created actors to build them.  This creates an actor supervision hierarchy based on the
+  // dataflow graph hierarchy
+  private def createPlans: Receive = {
+    case Create(id, plans, creationListener, finishListener, existing, poolSize) => {
+      for (plan <- plans;
+           featAct <- featureActor(plan.feat, finishListener, existing, poolSize)) {
+        val cache = if (reuse(plan.feat)) existing + ((plan.feat, featAct)) else existing
+        
+        println(cache)
+        
+        featAct ! Create(id, plan.next, creationListener, finishListener, cache, poolSize)
+        addListener(featAct)
+        
+        creationListener ! Created(id, plan.feat)
+      }
+    }
+  }
+  
+  // Get an actor from the cache or create a new one if needed
+  private def featureActor(feat: Feature, 
+                           finishListener: ActorRef, 
+                           cache: Map[Feature, ActorRef], 
+                           poolSize: Int) = {
+    if (cache.contains(feat)) {
+      println("Using cached version " + feat)
+      cache.get(feat)
+    }
+    else feat match {
+      case Resequence => Some(reseqActor())
+      case CSVOut(out, _, name, prec, del) => Some(csvActor(out, name, prec, del, finishListener))
+      case in: Input => Some(inputActor(poolSize))
+      case Frame(_, frameSize, stepSize) => Some(frameActor(frameSize, stepSize, poolSize))
+      case Window(_, _, _, winType) => Some(windowActor(winType, poolSize))
+      case fft: FFT => Some(fftActor(poolSize))
+      case mag: MagnitudeSpectrum => Some(magSpecActor(poolSize))
+      case MFCC(sr, fr, _, _, coef, filt, fmin, fmax) => Some(mfccActor(sr, fr, coef, filt, fmin, fmax, poolSize))
+      case _ => None
+    }
+  }
+  
+  // Get whether or not this actor needs to be re-used.  Actors that manage state across
+  // multiple inputs (e.g. aggregation, re-sequencing, etc.) need to be re-used
+  private def reuse(feat: Feature) = feat match {
+    case Resequence => true
+    case csv: CSVOut => true
+    case _ => false
+  }
 }
 
 /**
  * Functions for creating Actor Trees based on Feature Extraction Plans
  */
-object FeatureActors {
-
-  def actorTree(plan: Plan, finishListener: ActorRef, poolSize: Int = 1)(implicit sys: ActorSystem): ActorRef = {
-
-    def tree(p: Plan): ActorRef = p match {
-      case Plan(feat, Nil) => actorFor(feat, finishListener, poolSize)
-      case Plan(feat, nextFeats) => {
-        val nextActs = nextFeats map { p => tree(p) }
-        val next = if (nextActs.size == 1) nextActs(0) else broadcast(sys, Props(), nextActs.toList)
-        actorFor(feat, next, poolSize)
-      }
-    }
-
-    tree(plan)
-  }
-
-  /**
-   * Create an actor for a given feature
-   */
-  def actorFor[A <: Feature](feature: A, next: ActorRef, poolSize: Int)(implicit sys: ActorSystem): ActorRef = {
-    feature match {
-      case Resequence => reseqActor(sys, next)
-      case feat: CSVOut => csvActor(feat, sys, next)
-      case feat: Input => inputActor(feat, sys, next, poolSize)
-      case feat: Frame => frameActor(feat, sys, next, poolSize)
-      case feat: Window => windowActor(feat, sys, next, poolSize)
-      case feat: FFT => fftActor(feat, sys, next, poolSize)
-      case feat: MagnitudeSpectrum => magSpecActor(feat, sys, next, poolSize)
-      case feat: MFCC => mfccActor(feat, sys, next, poolSize)
-    }
-  }
-
-  def broadcast(system: ActorSystem, props: Props, actors: List[ActorRef]) = {
-    system.actorOf(props.withRouter(BroadcastRouter(routees = actors)))
-  }
+object FeatureActor {
 
   /**
    * Creates an actor pool (round robin strategy) of a given size
    */
-  def pool(system: ActorSystem, props: Props, size: Int): ActorRef = {
-    if (size == 1) system.actorOf(props)
-    else system.actorOf(props.withRouter(RoundRobinRouter(nrOfInstances = size)))
+  def pool(props: Props, size: Int, name: String)(implicit context: ActorContext): ActorRef = {
+    if (size == 1) context.actorOf(props, name)
+    else context.actorOf(props.withRouter(RoundRobinRouter(nrOfInstances = size)), name)
   }
   
-  private[this] lazy val seqF: FeatureFrame[_] => SeqMetadata = (a) => {
-    SeqMetadata(a.inputName, a.index, a.total)
+  /**
+   * Create a Re-Sequencing actor for [[safe.actor.FeatureFrame]] sequences
+   */
+  def reseqActor()(implicit context: ActorContext) = {
+    val seqF: FeatureFrame[_] => SeqMetadata = (a) => SeqMetadata(a.inputName, a.index, a.total)
+    context.actorOf(ResequenceActor.props(seqF), "resequence")
   }
   
-  private[this] def reseqActor(system: ActorSystem, next: ActorRef) = {
-    system.actorOf(Props(new ResequenceActor(next, seqF)))
+  /**
+   * Create an actor for writing out features to CSV files
+   */
+  def csvActor(outputDir: String, 
+               featName: String, 
+               precision: Int, 
+               delim: String, 
+               finishListener: ActorRef)(implicit context: ActorContext) = {
+    context.actorOf(CSVWriteActor.props(outputDir, featName, precision, delim, finishListener), "csv")
+  }
+  
+  /**
+   * Create an actor for reading in local audio files
+   */
+  def inputActor(poolSize: Int)(implicit context: ActorContext) = {
+    val inputF = (filePath: String) => new LocalFileAudioIn(filePath)
+    pool(TransformActor.props(inputF), poolSize, "in")
   }
 
-  private[this] def csvActor(feature: CSVOut, system: ActorSystem, next: ActorRef) = {
-    system.actorOf(Props(new CSVWriteActor(feature.outputDir,
-      feature.featName,
-      feature.precision,
-      feature.delim,
-      next)))
-  }
-  
-  def inputActor(feature: Input, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    val input = (filePath: String) => new LocalFileAudioIn(filePath)
-    pool(system, Props(new TransformActor(next, input)), poolSize)
-  }
-
-  private[this] def frameActor(feature: Frame, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    val frameFunction = (in: AudioIn) => {
+  /**
+   * Create an actor that splits audio streams into (potentially overlapping) frames
+   */
+  def frameActor(frameSize: Int, stepSize: Int, poolSize: Int)(implicit context: ActorContext) = {
+    val frameF = (in: AudioIn) => {
       val audioStream = AudioSystem.getAudioInputStream(in.stream)
       val inputName = in.name
-      val frameItr = AudioStreamIterator(audioStream, feature.frameSize, feature.stepSize)
+      val frameItr = AudioStreamIterator(audioStream, frameSize, stepSize)
       val total = frameItr.size
 
       // Create the frames from the audio stream
@@ -99,11 +132,14 @@ object FeatureActors {
       }
     }
 
-    pool(system, Props(new SplitActor(next, frameFunction)), poolSize)
+    pool(SplitActor.props(frameF), poolSize, "frame")
   }
 
-  private[this] def windowActor(feature: Window, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    val window: dsp.Window.WindowFunction = feature.windowType match {
+  /**
+   * Create an actor for windowing functions (e.g. hann, blackman, hamming, etc.)
+   */
+  def windowActor(windowType: String, poolSize: Int)(implicit context: ActorContext) = {
+    val windowF: dsp.Window.WindowFunction = windowType match {
       case "bartlett" => dsp.Window.bartlett
       case "blackman" => dsp.Window.blackman
       case "blackmanHarris" => dsp.Window.blackmanHarris
@@ -111,35 +147,45 @@ object FeatureActors {
       case _ => dsp.Window.hann // Default to hann
     }
 
-    pool(system, Props(new TransformActor(next, liftDD(window))), poolSize)
+    pool(TransformActor.props(liftDD(windowF)), poolSize, windowType)
   }
 
-  private[this] lazy val fft: Any => ComplexFeatureFrame = {
-    case RealFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fft(data), idx, total)
-    case ComplexFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fftc(data), idx, total)
+  /**
+   * Create an actor for a FFT mapping function
+   */
+  def fftActor(poolSize: Int)(implicit context: ActorContext) = {
+    val fftF: Any => ComplexFeatureFrame = {
+      case RealFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fft(data), idx, total)
+      case ComplexFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fftc(data), idx, total)
+    }
+    
+    pool(TransformActor.props(fftF), poolSize, "fft")
   }
 
-  private[this] def fftActor(feature: FFT, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    pool(system, Props(new TransformActor(next, fft)), poolSize)
+  /**
+   * Create an actor for calculating the Magnitude Spectrum
+   */
+  def magSpecActor(poolSize: Int)(implicit context: ActorContext) = {
+    pool(TransformActor.props(liftCD(dsp.PowerSpectrum.magnitude)), poolSize, "magnitude")
   }
 
-  private[this] def magSpecActor(feature: MagnitudeSpectrum, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    pool(system, Props(new TransformActor(next, liftCD(dsp.PowerSpectrum.magnitude))), poolSize)
-  }
+  /**
+   * Create an actor for a MFCC mapping function
+   */
+  def mfccActor(sampleRate: Float, 
+                frameSize: Int, 
+                numCoeffs: Int, 
+                melFilters: Int, 
+                freqMin: Float, 
+                freqMax: Float, 
+                poolSize: Int)(implicit context: ActorContext) = {
+    val mfccF = dsp.MFCC.mfcc(sampleRate, frameSize, numCoeffs, melFilters, freqMin, freqMax)
 
-  private[this] def mfccActor(feature: MFCC, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    val mfcc = dsp.MFCC.mfcc(feature.sampleRate,
-      feature.frameSize,
-      feature.numCoeffs,
-      feature.melFilters,
-      feature.freqMin,
-      feature.freqMax)
-
-    pool(system, Props(new TransformActor(next, liftDD(mfcc))), poolSize)
+    pool(TransformActor.props(liftDD(mfccF)), poolSize, "mfcc")
   }
   
-  private[this] def specShapeActor(feature: SpectralShape, system: ActorSystem, next: ActorRef, poolSize: Int) = {
-    pool(system, Props(new TransformActor(next, liftDD(dsp.SpectralShape.statistics))), poolSize)
+  def specShapeActor(poolSize: Int)(implicit context: ActorContext) = {
+    pool(TransformActor.props(liftDD(dsp.SpectralShape.statistics)), poolSize, "spectralShape")
   }
 
   // TODO There is a lot of duplication between the feature frames that could be abstracted

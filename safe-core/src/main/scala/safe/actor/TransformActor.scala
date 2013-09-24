@@ -1,18 +1,25 @@
 package safe.actor
 
-import akka.actor.{ Actor, ActorRef, ActorLogging }
+import akka.actor.{ ActorRef, Props, Status }
 
-class TransformActor[A, B](next: ActorRef,
-                           f: A => B) extends Actor with ActorLogging {
+class TransformActor[A, B](f: A => B, listeners: ActorRef*) extends FeatureActor {
   
-  def receive = {
+  listeners foreach { l => addListener(l) }
+  
+  def extract = {
     case a: A =>
       try {
-        next ! f(a)
+        broadcast(f(a))
       }
       catch {
-        case _: Throwable => log.error("Unable to process message " + a)
+        case e: Throwable => sender ! Status.Failure(
+            new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
   }
   
+}
+
+object TransformActor {
+  def props[A, B](f: A => B, listeners: ActorRef*) = 
+    Props(classOf[TransformActor[A, B]], f, listeners)
 }

@@ -21,18 +21,43 @@ class FeaturePlanSpec extends FlatSpec
   val pbcd = Plan(B, List(pcd))
   
   "Creating a Feature Extraction Plan" should "work for a single feature" in {
-    FeatureExtraction.plans(List(A)) should equal (List(pa))
-    FeatureExtraction.plans(List(A, A)) should equal (List(pa))
-    FeatureExtraction.plans(List(AB)) should equal (List(pab))
-    FeatureExtraction.plans(List(AB, AB)) should equal (List(pab))
-    FeatureExtraction.plans(List(ABC)) should equal (List(pabc))
+    val as = FeatureExtraction.plans(List(A)) 
+    as should equal (List(pa))
+    FeatureExtraction.featureCount(as(0)) should equal (1)
+    
+    val aas = FeatureExtraction.plans(List(A, A)) 
+    aas should equal (List(pa))
+    FeatureExtraction.featureCount(aas(0)) should equal (1)
+    
+    val abs = FeatureExtraction.plans(List(AB)) 
+    abs should equal (List(pab))
+    FeatureExtraction.featureCount(abs(0)) should equal (1)
+    
+    val ababs = FeatureExtraction.plans(List(AB, AB)) 
+    ababs should equal (List(pab))
+    FeatureExtraction.featureCount(ababs(0)) should equal (1)
+    
+    val abcs = FeatureExtraction.plans(List(ABC)) 
+    abcs should equal (List(pabc))
+    FeatureExtraction.featureCount(abcs(0)) should equal (1)
   }
   
   it should "merge overlapping features" in {
-    FeatureExtraction.plans(List(AB, AC)) should equal (List(Plan(A, List(pb, pc))))
-    FeatureExtraction.plans(List(ABC, AC)) should equal (List(Plan(A, List(pbc, pc))))
-    FeatureExtraction.plans(List(ABC, ABD)) should equal (List(Plan(A, List(Plan(B, List(pc, pd))))))
-    FeatureExtraction.plans(List(ABC, ACD)) should equal (List(Plan(A, List(pbc, pcd))))
+    val abacs = FeatureExtraction.plans(List(AB, AC)) 
+    abacs should equal (List(Plan(A, List(pb, pc))))
+    FeatureExtraction.featureCount(abacs(0)) should equal (2)
+    
+    val abcacs = FeatureExtraction.plans(List(ABC, AC)) 
+    abcacs should equal (List(Plan(A, List(pbc, pc))))
+    FeatureExtraction.featureCount(abcacs(0)) should equal (2)
+    
+    val abcabds = FeatureExtraction.plans(List(ABC, ABD)) 
+    abcabds should equal (List(Plan(A, List(Plan(B, List(pc, pd))))))
+    FeatureExtraction.featureCount(abcabds(0)) should equal (2)
+    
+    val abcacds = FeatureExtraction.plans(List(ABC, ACD)) 
+    abcacds should equal (List(Plan(A, List(pbc, pcd))))
+    FeatureExtraction.featureCount(abcacds(0)) should equal (2)
   }
   
   it should "create new plans if none overlap" in {

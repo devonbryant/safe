@@ -25,7 +25,7 @@ object Defaults {
   val windowType = "hann"
 }
 
-object Resequence extends Feature {
+case object Resequence extends Feature {
   val dataflow = Dataflow(Nil)
 }
 
