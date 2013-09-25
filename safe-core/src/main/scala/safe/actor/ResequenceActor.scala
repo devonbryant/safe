@@ -3,7 +3,7 @@ package safe.actor
 import akka.actor.{ ActorRef, Props, Status }
 import scala.collection.mutable
 
-class ResequenceActor[A](f: A => SeqMetadata, listeners: ActorRef*) extends FeatureActor {
+class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef]) extends FeatureActor {
   
   // Used to keep track of the last number processed in the sequence
   private[this] val sequenceCounts = new mutable.HashMap[String, Int]()
@@ -11,9 +11,9 @@ class ResequenceActor[A](f: A => SeqMetadata, listeners: ActorRef*) extends Feat
   // Queue of messages waiting for an earlier number in the sequence to be released
   private[this] val queuedMessages = new mutable.HashMap[String, mutable.Map[Int, A]]()
   
-  listeners foreach { l => addListener(l) }
+  next foreach { l => addListener(l) }
   
-  def extract = {
+  def receive = {
     case a: A =>
       try {
         f(a) match {
@@ -23,12 +23,12 @@ class ResequenceActor[A](f: A => SeqMetadata, listeners: ActorRef*) extends Feat
             
             if (nextNum == num) {
               // This is the next item in the sequence, forward it on
-              broadcast(a)
+              gossip(a)
               nextNum += 1
               
               // Release any queued messages that are next in the sequence
               while(queue.contains(nextNum)) {
-                broadcast(queue(nextNum))
+                gossip(queue(nextNum))
                 queue.remove(nextNum)
                 nextNum += 1
               }
@@ -59,6 +59,6 @@ class ResequenceActor[A](f: A => SeqMetadata, listeners: ActorRef*) extends Feat
 case class SeqMetadata(id: String, num: Int, total: Int)
 
 object ResequenceActor {
-  def props[A](f: A => SeqMetadata, listeners: ActorRef*) = 
-    Props(classOf[ResequenceActor[A]], f, listeners)
+  def props[A](f: A => SeqMetadata, next: Seq[ActorRef] = Nil) = 
+    Props(classOf[ResequenceActor[A]], f, next)
 }

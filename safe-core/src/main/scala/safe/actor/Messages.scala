@@ -26,20 +26,6 @@ case class ComplexFeatureFrame(inputName: String,
                                total: Int) extends FeatureFrame[SafeVector[Complex]]
 
 /**
- * Message used to create the actor hierarchy for feature extraction plan(s)
- */
-case class Create(id: String,
-                  plans: Seq[Plan], 
-                  creationListener: ActorRef,
-                  finishListener: ActorRef,
-                  existing: Map[Feature, ActorRef] = Map.empty,
-                  poolSize: Int = 1)
-/**
- * Message used to indicate that an actor has been created for a feature
- */
-case class Created(id: String, feat: Feature)
-
-/**
  * Message used to run extraction
  * @param id a unique id for the feature extraction plan
  * @param plan the feature extraction plan
@@ -47,7 +33,7 @@ case class Created(id: String, feat: Feature)
  * @param path an individual audio file or a directory of files
  * @param recursive whether or not to traverse child directories (if path is a directory)
  */
-case class RunExtraction(id: String, 
+case class RunExtraction[A](id: String, 
                          plan: Plan, 
                          listener: ActorRef, 
                          path: String, 

@@ -2,14 +2,14 @@ package safe.actor
 
 import akka.actor.{ ActorRef, Props, Status }
 
-class TransformActor[A, B](f: A => B, listeners: ActorRef*) extends FeatureActor {
+class TransformActor[A, B](f: A => B, next: Seq[ActorRef]) extends FeatureActor {
   
-  listeners foreach { l => addListener(l) }
+  next foreach { l => addListener(l) }
   
-  def extract = {
+  def receive = {
     case a: A =>
       try {
-        broadcast(f(a))
+        gossip(f(a))
       }
       catch {
         case e: Throwable => sender ! Status.Failure(
@@ -20,6 +20,6 @@ class TransformActor[A, B](f: A => B, listeners: ActorRef*) extends FeatureActor
 }
 
 object TransformActor {
-  def props[A, B](f: A => B, listeners: ActorRef*) = 
-    Props(classOf[TransformActor[A, B]], f, listeners)
+  def props[A, B](f: A => B, next: Seq[ActorRef] = Nil) = 
+    Props(classOf[TransformActor[A, B]], f, next)
 }

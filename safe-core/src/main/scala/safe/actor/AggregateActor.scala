@@ -2,15 +2,15 @@ package safe.actor
 
 import akka.actor.{ ActorRef, Props, Status }
 
-class AggregateActor[A, B](agg: Aggregator[A, B], listeners: ActorRef*) extends FeatureActor {
+class AggregateActor[A, B](agg: Aggregator[A, B], next: Seq[ActorRef]) extends FeatureActor {
   
-  listeners foreach { l => addListener(l) }
+  next foreach { l => addListener(l) }
   
-  def extract = {
+  def receive = {
     case a: A => 
       try {
         agg.add(a) match {
-          case Some(b) => broadcast(b) // We have an aggregate result, send it off
+          case Some(b) => gossip(b) // We have an aggregate result, send it off
           case _ => // Nothing to do
         }
       }
@@ -23,6 +23,6 @@ class AggregateActor[A, B](agg: Aggregator[A, B], listeners: ActorRef*) extends 
 }
 
 object AggregateActor {
-  def props[A, B](agg: Aggregator[A, B], listeners: ActorRef*) = 
-    Props(classOf[AggregateActor[A, B]], agg, listeners)
+  def props[A, B](agg: Aggregator[A, B], next: Seq[ActorRef] = Nil) = 
+    Props(classOf[AggregateActor[A, B]], agg, next)
 }

@@ -2,17 +2,17 @@ package safe.actor
 
 import akka.actor.{ ActorRef, Props, Status }
 
-class SplitActor[A, B](f: A => Iterator[B], listeners: ActorRef*) extends FeatureActor {
+class SplitActor[A, B](f: A => Iterator[B], next: Seq[ActorRef]) extends FeatureActor {
   
-  listeners foreach { l => addListener(l) }
+  next foreach { l => addListener(l) }
   
 //  println("Created split")
   
-  def extract = {
+  def receive = {
     case a: A =>
       try {
 //        println("Running split")
-        f(a) foreach { b => broadcast(b) }
+        f(a) foreach { b => gossip(b) }
       }
       catch {
         case e: Throwable => sender ! Status.Failure(
@@ -23,6 +23,6 @@ class SplitActor[A, B](f: A => Iterator[B], listeners: ActorRef*) extends Featur
 }
 
 object SplitActor {
-  def props[A, B](f: A => Iterator[B], listeners: ActorRef*) = 
-    Props(classOf[SplitActor[A, B]], f, listeners)
+  def props[A, B](f: A => Iterator[B], next: Seq[ActorRef] = Nil) = 
+    Props(classOf[SplitActor[A, B]], f, next)
 }

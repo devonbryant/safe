@@ -9,7 +9,7 @@ class CSVWriteActor(outputDir: String,
                     featName: String,
                     precision: Int, 
                     delim: String,
-                    finishListener: ActorRef) extends FeatureActor {
+                    next: Seq[ActorRef]) extends FeatureActor {
   
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](precision)
   implicit val cmplxWriteable = TextFeatureWriter.complexPrecisionFmtWriteable(precision)
@@ -21,9 +21,9 @@ class CSVWriteActor(outputDir: String,
   val pathSep = java.nio.file.FileSystems.getDefault().getSeparator()
   val outDirPath = if (outputDir.endsWith(pathSep)) outputDir else outputDir + pathSep
   
-  addListener(finishListener)
+  next foreach { l => addListener(l) }
   
-  def extract = {
+  def receive = {
     case RealFeatureFrame(inName, data, idx, total) => {
       write(inName, idx, total, data) match {
         case Failure(exc) => sender ! Status.Failure(
@@ -48,7 +48,7 @@ class CSVWriteActor(outputDir: String,
     if (idx == total) {
       writer.close()
       writers -= name
-      broadcast(FinishedFeature(name, featName))
+      gossip(FinishedFeature(name, featName))
     }
     result
   }
@@ -56,6 +56,6 @@ class CSVWriteActor(outputDir: String,
 }
 
 object CSVWriteActor {
-  def props(outputDir: String, featName: String, precision: Int, delim: String, finishListener: ActorRef) =
-    Props(classOf[CSVWriteActor], outputDir, featName, precision, delim, finishListener)
+  def props(outputDir: String, featName: String, precision: Int, delim: String, next: Seq[ActorRef] = Nil) =
+    Props(classOf[CSVWriteActor], outputDir, featName, precision, delim, next)
 }
