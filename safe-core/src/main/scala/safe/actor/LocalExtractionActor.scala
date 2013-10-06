@@ -2,11 +2,11 @@ package safe.actor
 
 import akka.actor.{ Actor, ActorLogging, Props }
 import safe.feature._
-import safe.io.LocalAudioFileIterator
+import safe.io.{ LocalAudioFileIterator, LocalFileAudioIn }
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
 
-class ExtractionActor extends Actor with ActorLogging {
+class LocalExtractionActor extends Actor with ActorLogging {
   
   def receive = {
     case RunExtraction(id, plan, finishListener, path, recur) => {
@@ -25,15 +25,18 @@ class ExtractionActor extends Actor with ActorLogging {
       // Create the actor tree for the plan
       FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, Seq(featFinishListener), 2) match {
         case Success(actTree) => {
-          itr foreach { file => actTree ! file }
+          itr foreach { file => actTree ! new LocalFileAudioIn(file) }
         }
-        case Failure(exc) => log.error("Unable to create actor tree for plan (" + id + ") " + plan, exc)
+        case Failure(exc) => {
+          log.error("Unable to create actor tree for plan (" + id + ") " + plan, exc)
+          finishListener ! FinishedPlan(id)
+        }
       }
     }
   }
   
 }
 
-object ExtractionActor {
-  def props(): Props = Props(classOf[ExtractionActor])
+object LocalExtractionActor {
+  def props(): Props = Props(classOf[LocalExtractionActor])
 }

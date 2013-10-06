@@ -35,7 +35,7 @@ object ExtractionActorsTest extends App {
   runActors()
   
   def runActors() = {
-    val planActor = system.actorOf(ExtractionActor.props())
+    val planActor = system.actorOf(LocalExtractionActor.props())
     val listener = system.actorOf(Props(classOf[FinishActor]))
     
     planActor ! RunExtraction("mfcc", plan, listener, "../../../test/")

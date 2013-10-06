@@ -256,45 +256,19 @@ case class SpectralOnsetFilter(sampleRate: Float,
 }
 
 /**
- * Spectral Onset Activations
- * {{{ In -> Frame -> Window -> FFT -> Magnitude -> OnsetFilter -> SpectralFlux -> OnsetActivations }}}
- */
-case class SpectralOnsetActivations(sampleRate: Float,
-                                    frameSize: Int = Defaults.frameSize,
-                                    stepSize: Int = Defaults.stepSize,
-                                    windowType: String = Defaults.windowType,
-                                    thresh: Double = 0.22) extends Feature {
-
-  val diffLen = safe.dsp.SpectralOnsetDetection.frameDiff(
-    stepSize,
-    safe.dsp.Window.window(windowType, frameSize),
-    thresh) + 1
-
-  lazy val dataflow = Dataflow(
-    List[Feature](Input(sampleRate),
-      Frame(sampleRate, frameSize, stepSize),
-      Window(sampleRate, frameSize, stepSize, windowType),
-      FFT(sampleRate, frameSize, stepSize, windowType),
-      MagnitudeSpectrum(sampleRate, frameSize, stepSize, windowType),
-      SpectralOnsetFilter(sampleRate, frameSize, stepSize, windowType),
-      SpectralFlux(sampleRate, frameSize, stepSize, windowType, diffLen),
-      this))
-}
-
-/**
  * Spectral Onsets
- * {{{ In -> Frame -> Window -> FFT -> Magnitude -> OnsetFilter -> SpectralFlux -> ZeroPad -> OnsetActivations -> Onsets }}}
+ * {{{ In -> Frame -> Window -> FFT -> Magnitude -> OnsetFilter -> SpectralFlux -> ZeroPad -> Onsets }}}
  */
 case class SpectralOnsets(sampleRate: Float,
                           frameSize: Int = Defaults.frameSize,
                           stepSize: Int = Defaults.stepSize,
                           windowType: String = Defaults.windowType,
-                          thresh: Double = 0.22) extends Feature {
+                          actThresh: Double = 0.22) extends Feature {
 
   val diffLen = safe.dsp.SpectralOnsetDetection.frameDiff(
     stepSize,
     safe.dsp.Window.window(windowType, frameSize),
-    thresh) + 1
+    actThresh) + 1
 
   // Since we're starting at 0, pad the beginning as if 
   // we had started at step_size - window_length
@@ -309,6 +283,5 @@ case class SpectralOnsets(sampleRate: Float,
       SpectralOnsetFilter(sampleRate, frameSize, stepSize, windowType),
       SpectralFlux(sampleRate, frameSize, stepSize, windowType, diffLen),
       ZeroPad(sampleRate, frameSize, stepSize, padding, 0),
-      SpectralOnsetActivations(sampleRate, frameSize, stepSize, windowType, thresh),
       this))
 }

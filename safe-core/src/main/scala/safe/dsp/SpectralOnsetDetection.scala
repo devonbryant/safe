@@ -16,50 +16,25 @@ import scala.collection.mutable
 object SpectralOnsetDetection {
   
   /**
-   * Calculate the note onsets (in seconds) from a sequence of note activations (spectral flux) 
+   * Get a function to calculate the note onsets (in seconds) 
+   * from a sequence of note activations (spectral flux) 
    */
   def onsets(sampleFreq: Float, 
-             stepSize: Int, 
-             activations: SafeVector[Double],
+             stepSize: Int,
              thresh: Double = 2.5,
              preAvg: Int = 100, 
              preMax: Int = 30,
-             millisPerOnset: Int = 30) = {
-    
+             millisPerOnset: Int = 30): SafeVector[Double] => SafeVector[Double] = {
     val fps = ceil(sampleFreq / stepSize).toInt
     
     def toFrame(a: Int) = round((fps * a) / 1000.0).toInt
     
     val preAvgFr = toFrame(preAvg)
     val preMaxFr = toFrame(preMax)
-    val postAvgFr = 0
-    val postMaxFr = 0
     
     val combine = millisPerOnset / 1000.0
     
-    // Find the moving max and moving avg
-    val movMax = Filter.movingMax(activations, preMaxFr + postMaxFr + 1, floor((preMaxFr - postMaxFr) / 2.0).toInt)
-    val movAvg = Filter.movingAvg(activations, preAvgFr + postAvgFr + 1, floor((preAvgFr - postAvgFr) / 2.0).toInt)
-    
-    // Detected onsets are = to the moving max and >= the moving avg + threshold
-    val detections = SafeVector.zipWith(activations, movMax, movAvg) { (act, max, avg) =>
-      if (act == max && act >= avg + thresh) act else 0.0
-    }
-    
-    var i = 0
-    var lastOnset = 0.0
-    val detectionMillis = new mutable.ArrayBuffer[Double]()
-    while (i < detections.length) {
-      if (detections(i) != 0.0) {
-        val onset = (i.toDouble / fps.toDouble)
-        if (onset > lastOnset + combine) {
-          detectionMillis += onset
-          lastOnset = onset
-        }
-      }
-      i += 1
-    }
-    SafeVector(detectionMillis.toArray)
+    onsetsFunc(preAvgFr, preMaxFr, thresh, fps, combine)_
   }
   
   /**
@@ -103,6 +78,32 @@ object SpectralOnsetDetection {
     val sampleDiff = window.length / 2 - idx
     val frameDiff = if (stepSize > 0) round(sampleDiff.toDouble / stepSize).toInt else 1
     if (frameDiff > 1) frameDiff else 1
+  }
+  
+  private[this] def onsetsFunc(preAvgFr: Int, preMaxFr: Int, thresh: Double, fps: Int, comb: Double)(activations: SafeVector[Double]) = {
+    // Find the moving max and moving avg
+    val movMax = Filter.movingMax(activations, preMaxFr + 1, floor((preMaxFr) / 2.0).toInt)
+    val movAvg = Filter.movingAvg(activations, preAvgFr + 1, floor((preAvgFr) / 2.0).toInt)
+    
+    // Detected onsets are = to the moving max and >= the moving avg + threshold
+    val detections = SafeVector.zipWith(activations, movMax, movAvg) { (act, max, avg) =>
+      if (act == max && act >= avg + thresh) act else 0.0
+    }
+    
+    var i = 0
+    var lastOnset = 0.0
+    val detectionMillis = new mutable.ArrayBuffer[Double]()
+    while (i < detections.length) {
+      if (detections(i) != 0.0) {
+        val onset = (i.toDouble / fps.toDouble)
+        if (onset > lastOnset + comb) {
+          detectionMillis += onset
+          lastOnset = onset
+        }
+      }
+      i += 1
+    }
+    SafeVector(detectionMillis.toArray)
   }
   
   private[this] def filterFunc(filt: CSCMatrix[Double])(magSpecData: SafeVector[Double]) = {

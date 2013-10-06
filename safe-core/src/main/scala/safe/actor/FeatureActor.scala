@@ -6,7 +6,7 @@ import breeze.math.Complex
 import safe.SafeVector
 import safe.dsp
 import safe.feature._
-import safe.io.{ AudioIn, AudioStreamIterator, LocalFileAudioIn }
+import safe.io.{ AudioIn, AudioStreamIterator, LocalFileAudioIn, TextFeatureWriter }
 import javax.sound.sampled.AudioSystem
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
@@ -28,10 +28,16 @@ object FeatureActor {
         classOf[CSVOut] -> csvActorCreation,
         classOf[Input] -> inputActorCreation,
         classOf[Frame] -> frameActorCreation,
+        classOf[ZeroPad] -> zeroPadActorCreation,
         classOf[Window] -> windowActorCreation,
         classOf[FFT] -> fftActorCreation,
         classOf[MagnitudeSpectrum] -> magSpecActorCreation,
-        classOf[MFCC] -> mfccActorCreation)
+        classOf[SpectralFlux] -> specFluxActorCreation,
+        classOf[SpectralOnsetFilter] -> onsetFilterActorCreation,
+        classOf[CQT] -> cqtActorCreation,
+        classOf[MFCC] -> mfccActorCreation,
+        classOf[SpectralShape] -> specShapeActorCreation,
+        classOf[SpectralOnsets] -> specOnsetActorCreation)
   
   def actorTree(plan: Plan, 
                 actorCreation: Map[Class[_ <: Feature], FeatureActorCreation] = defaultActorCreators(),
@@ -75,23 +81,24 @@ object FeatureActor {
   }
   
   /**
-   * Create an actor for writing out features to CSV files
+   * Create an actor for writing out features to local CSV files
    */
   val csvActorCreation = new FeatureActorCreation {
+    val localW: String => TextFeatureWriter = TextFeatureWriter.apply _
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
       feat match {
         case CSVOut(out, _, name, prec, delim) => 
-            Some(context.actorOf(CSVWriteActor.props(out, name, prec, delim, listeners), "csv"))
+            Some(context.actorOf(CSVWriteActor.props(out, localW, name, prec, delim, listeners), "csv"))
         case _ => None
       }
     }
   }
   
   /**
-   * Create an actor for reading in local audio files
+   * Create an actor for reading in audio input streams
    */
   val inputActorCreation = new FeatureActorCreation {
-    val inputF = (filePath: String) => new LocalFileAudioIn(filePath)
+    val inputF = identity[AudioIn] _
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
       feat match {
         case i: Input => Some(pool(TransformActor.props(inputF, listeners), poolSize, "in"))
@@ -124,6 +131,23 @@ object FeatureActor {
         case _ => None
       }
       
+    }
+  }
+  
+  /**
+   * Create an actor for zero-padding frames
+   */
+  val zeroPadActorCreation = new FeatureActorCreation {
+    def padF(lead: Int, trail: Int) = {
+      (a: SafeVector[Double]) => SafeVector.zeros[Double](lead) ++ a ++ SafeVector.zeros[Double](trail)
+    }
+    
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+      feat match {
+        case ZeroPad(_, _, _, leading, trailing) =>
+          Some(pool(TransformActor.props(liftDD(padF(leading, trailing)), listeners), poolSize, "zeroPad"))
+        case _ => None
+      }
     }
   }
 
@@ -178,6 +202,45 @@ object FeatureActor {
       }
     }
   }
+  
+  /**
+   * Create an actor for calculating the Spectral Flux
+   */
+  val specFluxActorCreation = new FeatureActorCreation {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+      feat match {
+        case SpectralFlux(_, _, _, _, diffLen) => 
+          Some(pool(AggregateActor.props(new SpectralFluxAggregator(diffLen), listeners), poolSize, "spectralFlux"))
+        case _ => None
+      }
+    }
+  }
+  
+  /**
+   * Create an actor for calculating the Spectral Onset Filter
+   */
+  val onsetFilterActorCreation = new FeatureActorCreation {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+      feat match {
+        case SpectralOnsetFilter(sr, fs, _, _) =>
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsetFilter(sr, fs)), listeners), poolSize, "onsetFilter"))
+        case _ => None
+      }
+    }
+  }
+  
+  /**
+   * Create an actor for a CQT mapping function
+   */
+  val cqtActorCreation = new FeatureActorCreation {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+      feat match {
+        case CQT(sr, _, _, bpo, fmax, fmin, thresh) =>
+          Some(pool(TransformActor.props(liftCC(dsp.CQT.cqt(sr, bpo, fmax, fmin, thresh)), listeners), poolSize, "cqt"))
+        case _ => None
+      }
+    }
+  }
 
   /**
    * Create an actor for a MFCC mapping function
@@ -200,6 +263,19 @@ object FeatureActor {
       feat match {
         case s: SpectralShape =>
           Some(pool(TransformActor.props(liftDD(dsp.SpectralShape.statistics), listeners), poolSize, "spectralShape"))
+        case _ => None
+      }
+    }
+  }
+  
+  /**
+   * Create an actor for calculating the Spectral Onsets
+   */
+  val specOnsetActorCreation = new FeatureActorCreation {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+      feat match {
+        case SpectralOnsets(sr, _, step, _, _) =>
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsets(sr, step)), listeners), poolSize, "spectralOnsets"))
         case _ => None
       }
     }

@@ -146,10 +146,14 @@ protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](a
   def -(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ - _ }
   
   def ++(other: SafeVector[A]) = {
-    val arr = new Array[A](length + other.length)
-    Array.copy(as, 0, arr, 0, length)
-    Array.copy(other.toArray, 0, arr, length, other.length)
-    new ArraySafeVector(arr)
+    if (other.length == 0) this
+    else if (length == 0) other
+    else {
+      val arr = new Array[A](length + other.length)
+      Array.copy(as, 0, arr, 0, length)
+      Array.copy(other.toArray, 0, arr, length, other.length)
+      new ArraySafeVector(arr)
+    }
   }
   
   def foreach(f: A => Unit) {
@@ -216,10 +220,14 @@ protected[safe] class RangeViewVector[@spec(Double, Float) A:ClassTag:Numeric](a
   def -(other: SafeVector[A]) = SafeVector.zipWith(this, other) { _ - _ }
   
   def ++(other: SafeVector[A]) = {
-    val arr = new Array[A](length + other.length)
-    Array.copy(toArray, 0, arr, 0, length)
-    Array.copy(other.toArray, 0, arr, length, other.length)
-    new ArraySafeVector(arr)
+    if (other.length == 0) this
+    else if (length == 0) other
+    else {
+      val arr = new Array[A](length + other.length)
+      Array.copy(toArray, 0, arr, 0, length)
+      Array.copy(other.toArray, 0, arr, length, other.length)
+      new ArraySafeVector(arr)
+    }
   }
   
   def foreach(f: A => Unit) {

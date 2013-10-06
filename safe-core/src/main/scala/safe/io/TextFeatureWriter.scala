@@ -15,9 +15,9 @@ class TextFeatureWriter(writer: io.Writer) extends FeatureWriter[String] {
 object TextFeatureWriter {
   def apply(writer: io.Writer) = new TextFeatureWriter(writer)
   
-  def apply(path: String) = new TextFeatureWriter(javaWriter(path))
+  def apply(path: String) = new TextFeatureWriter(localWriter(path))
   
-  def javaWriter(path: String): io.Writer = {
+  def localWriter(path: String): io.Writer = {
     val filePath = nio.file.FileSystems.getDefault().getPath(path)
     val charset = nio.charset.StandardCharsets.US_ASCII
     nio.file.Files.newBufferedWriter(filePath, charset)

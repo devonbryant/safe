@@ -6,6 +6,7 @@ import scala.collection.mutable
 import scala.util.{ Failure, Try }
 
 class CSVWriteActor(outputDir: String,
+                    writerFor: String => TextFeatureWriter,
                     featName: String,
                     precision: Int, 
                     delim: String,
@@ -42,7 +43,7 @@ class CSVWriteActor(outputDir: String,
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
     val writer = writers.getOrElseUpdate(
-        name, TextFeatureWriter(outDirPath + name + "." + featName + ".csv"))
+        name, writerFor(outDirPath + name + "." + featName + ".csv"))
     
     val result = writer.write(a)
     if (idx == total) {
@@ -56,6 +57,6 @@ class CSVWriteActor(outputDir: String,
 }
 
 object CSVWriteActor {
-  def props(outputDir: String, featName: String, precision: Int, delim: String, next: Seq[ActorRef] = Nil) =
-    Props(classOf[CSVWriteActor], outputDir, featName, precision, delim, next)
+  def props(outputDir: String, writerFor: String => TextFeatureWriter, featName: String, precision: Int, delim: String, next: Seq[ActorRef] = Nil) =
+    Props(classOf[CSVWriteActor], outputDir, writerFor, featName, precision, delim, next)
 }
