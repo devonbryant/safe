@@ -20,9 +20,12 @@ object NoFeature extends Feature {
 }
 
 object Defaults {
+  val sampleRate = 44100f
   val frameSize = 1024
   val stepSize = 512
   val windowType = "hann"
+  val outDir = System.getProperty("user.dir")
+  val precision = 6
 }
 
 case class Resequence extends Feature {
