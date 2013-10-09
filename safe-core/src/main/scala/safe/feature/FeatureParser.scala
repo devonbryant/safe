@@ -23,7 +23,6 @@ class FeatureParser(sampleFreq: Float = Defaults.sampleRate,
   
   def parsePlan(planStr: String): Try[Seq[Plan]] = parse(features, planStr) match {
     case Success(featTrys, next) => {
-      println(featTrys.length)
       featTrys.find(_.isFailure) match {
         case Some(scala.util.Failure(exc)) => scala.util.Failure(exc)
         case _ => scala.util.Success(FeatureExtraction.plans(featTrys.map(_.get)))

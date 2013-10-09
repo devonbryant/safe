@@ -6,12 +6,9 @@ class SplitActor[A, B](f: A => Iterator[B], next: Seq[ActorRef]) extends Feature
   
   next foreach { l => addListener(l) }
   
-//  println("Created split")
-  
   def receive = {
     case a: A =>
       try {
-//        println("Running split")
         f(a) foreach { b => gossip(b) }
       }
       catch {

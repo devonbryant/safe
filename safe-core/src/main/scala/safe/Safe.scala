@@ -5,6 +5,25 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import safe.actor._
 import safe.feature._
 
+/**
+ * Runs batch feature extraction on local files, taking the following command line arguments:
+ * 
+ * {{{
+ * -i <file> | --input <file>
+ *       input path (file or directory) for audio file(s) to process
+ * -r | --recursive
+ *       flag to process audio data in sub-directories (default = false)
+ * -p <file> | --plan <file>
+ *       path to feature extraction plan file
+ * -f <value> | --feature <value>
+ *       description and parameters for a single feature to extract
+ * -s <value> | --sample-rate <value>
+ *       sample rate in Hz of all audio files (default = 44100)
+ * -o <file> | --output-dir <file>
+ *       directory to write featre output to (default = './')
+ * }}}
+ * 
+ */
 object Safe extends App {
   
   val startTime = System.currentTimeMillis
