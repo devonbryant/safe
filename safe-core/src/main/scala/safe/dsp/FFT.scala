@@ -4,7 +4,6 @@ import safe.SafeVector
 import breeze.linalg.{ DenseVector, Vector }
 import breeze.math.Complex
 import scala.math._
-import scalaz.Memo._
 import scala.reflect.ClassTag
 
 /**

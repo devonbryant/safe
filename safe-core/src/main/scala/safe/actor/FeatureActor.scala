@@ -155,18 +155,18 @@ object FeatureActor {
    * Create an actor for windowing functions (e.g. hann, blackman, hamming, etc.)
    */
   val windowActorCreation = new FeatureActorCreation {
-    def windowF(windowType: String): dsp.Window.WindowFunction = windowType match {
-      case "bartlett" => dsp.Window.bartlett
-      case "blackman" => dsp.Window.blackman
-      case "blackmanHarris" => dsp.Window.blackmanHarris
-      case "hamming" => dsp.Window.hamming
-      case _ => dsp.Window.hann // Default to hann
+    def windowF(windowType: String, n: Int): dsp.Window.WindowFunction = windowType match {
+      case "bartlett" => dsp.Window.bartlett(n)
+      case "blackman" => dsp.Window.blackman(n)
+      case "blackmanHarris" => dsp.Window.blackmanHarris(n)
+      case "hamming" => dsp.Window.hamming(n)
+      case _ => dsp.Window.hann(n) // Default to hann
     }
     
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
       feat match {
-        case Window(_, _, _, winType) =>
-          Some(pool(TransformActor.props(liftDD(windowF(winType)), listeners), poolSize, winType))
+        case Window(_, frameSize, _, winType) =>
+          Some(pool(TransformActor.props(liftDD(windowF(winType, frameSize)), listeners), poolSize, winType))
         case _ => None
       }
     }

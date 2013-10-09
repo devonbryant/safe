@@ -1,7 +1,6 @@
-package safe.audio
+package safe
 
 import breeze.math.Complex
-import safe.SafeVector
 import safe.io._
 import safe.dsp._
 import Window._
@@ -14,7 +13,7 @@ import duration._
 import util._
 import ExecutionContext.Implicits.global
 
-object AudioTest extends App {
+object SeqVsFutureLocalTest extends App {
   
   val start = System.currentTimeMillis()
   
@@ -31,7 +30,7 @@ object AudioTest extends App {
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](4)
   implicit val vecWriteable = CSVFeatureWriter.delimWriteable(",")
   
-  val extraction = hann andThen fft andThen magnitude andThen mfcc(44100, frameSize)
+  val extraction = hann(frameSize) andThen fft andThen magnitude andThen mfcc(44100, frameSize)
   
 //  runSequential()
   runFutures()
@@ -84,4 +83,5 @@ object AudioTest extends App {
     val end = System.currentTimeMillis
     println("Ran in " + (end - start) + " millis")
   }
+  
 }
