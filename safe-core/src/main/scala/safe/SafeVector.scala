@@ -102,7 +102,7 @@ trait SafeVector[@spec(Double, Float) A] {
   
   def foreach(f: A => Unit): Unit
   
-  /** Get the index of the first occurrence that satisifies the predicate, or -1 */
+  /** Get the index of the first occurrence that satisfies the predicate, or -1 */
   def indexOf(f: A => Boolean): Int
   
   def map[@spec(Double, Float) B:ClassTag:Numeric](f: A => B): SafeVector[B]
@@ -129,8 +129,6 @@ trait SafeVector[@spec(Double, Float) A] {
     case _ => false
   }
 }
-
-import SafeVector._
 
 protected[safe] class ArraySafeVector[@spec(Double, Float) A:ClassTag:Numeric](as: Array[A]) extends SafeVector[A] {
   def apply(i: Int) = as(i)
