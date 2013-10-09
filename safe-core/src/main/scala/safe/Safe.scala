@@ -1,8 +1,13 @@
 package safe
 
 import safe.feature.Defaults
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import safe.actor._
+import safe.feature._
 
 object Safe extends App {
+  
+  val startTime = System.currentTimeMillis
   
   // Input configuration args
   case class SafeConfig(in: String = "", recur: Boolean = false, plan: String = "", feature: String = "",
@@ -26,17 +31,66 @@ object Safe extends App {
       sc.copy(out = x) } text("directory to write featre output to (default = './')")
   }
   
-  def validate(sc: Option[SafeConfig]): Option[SafeConfig] = sc match {
-    case Some(conf) => 
-      if (conf.plan.isEmpty() ^ conf.feature.isEmpty()) Some(conf)
-      else {
-        cliParser.reportError("Either --plan or --feature must be specified.")
-        cliParser.showUsage
-        None
-      }
-    case None => None
+  def validate(sc: SafeConfig): Option[SafeConfig] = {
+    if (sc.plan.isEmpty() ^ sc.feature.isEmpty()) Some(sc)
+    else {
+      cliParser.reportError("Either --plan or --feature must be specified.")
+      cliParser.showUsage
+      None
+    }
   }
   
-  // Parse the input args
-  validate(cliParser.parse(args, SafeConfig())) map { conf => println(conf) }
+  // Parse the input arguments
+  for {
+    parsedConf <- cliParser.parse(args, SafeConfig());
+    validConf <- validate(parsedConf)
+  } runExtraction(validConf)
+  
+  
+  def runExtraction(conf: SafeConfig) = {
+    
+    val featParser = new FeatureParser(conf.sampleRate, conf.out)
+    val parsedPlans = 
+      if (!conf.plan.isEmpty()) PlanReader.local.load(conf.plan) flatMap { featParser.parsePlan(_) }
+      else featParser.parsePlan(conf.feature)
+      
+    if (parsedPlans.isSuccess) {
+      val system = ActorSystem("TestSys")
+      
+      val plans = parsedPlans.get
+      
+      if (plans.length > 0) {
+        val planActor = system.actorOf(LocalExtractionActor.props())
+        val listener = system.actorOf(Props(classOf[FinishActor], plans.length))
+        
+        plans.zipWithIndex foreach {
+          case (plan, i) => planActor ! RunExtraction("plan" + i, plan, listener, conf.in, conf.recur)
+        }
+    
+        system.awaitTermination()
+        
+        val totalTime = System.currentTimeMillis - startTime
+        Console.println("Ran extraction in " + totalTime + " ms")
+      }
+      else {
+        Console.println("No plans parsed from " + conf.plan + conf.feature)
+      }
+    }
+    else {
+      Console.err.print("Error: ")
+      parsedPlans.failed foreach { err =>
+        Console.err.println(err.getMessage())
+      }
+    }
+  }
+}
+
+class FinishActor(numPlans: Int) extends Actor {
+  var i = 0
+  def receive = {
+    case FinishedPlan(_) => {
+      i += 1
+      if (i >= numPlans) context.system.shutdown()
+    }
+  }
 }
