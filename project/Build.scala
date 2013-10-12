@@ -3,9 +3,9 @@ import Keys._
 
 object SafeBuild extends Build {
   val commonSettings = Seq(
-    version := "0.1",
+    version := "0.1-SNAPSHOT",
 
-    scalaVersion := "2.10.2",
+    scalaVersion := "2.10.3",
 
     resolvers ++= Seq(
       "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
@@ -13,7 +13,7 @@ object SafeBuild extends Build {
       "Sonatype Snapshots"  at "https://oss.sonatype.org/content/repositories/snapshots/"),
 
     libraryDependencies ++= Seq(
-      "org.scalatest"  % "scalatest_2.10" % "1.9.1"  % "test",
+      "org.scalatest"  % "scalatest_2.10" % "1.9.2"  % "test",
       "org.scalacheck" %% "scalacheck"    % "1.10.1" % "test"
     )
   )

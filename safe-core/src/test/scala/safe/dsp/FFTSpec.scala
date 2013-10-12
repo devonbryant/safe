@@ -14,9 +14,9 @@ import scala.util.Random.nextDouble
 /**
  * Specification tests for [[safe.dsp.FFT]]
  */
-class FFTSpec extends SafeVectorMatchers
+class FFTSpec extends FlatSpec
                       with SignalGen
-                      with FlatSpec 
+                      with SafeVectorMatchers
                       with ShouldMatchers
                       with GeneratorDrivenPropertyChecks {
   

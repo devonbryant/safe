@@ -8,9 +8,9 @@ import safe.audio.MIDI
 /**
  * Specification tests for [[safe.dsp.CQT]]
  */
-class CQTSpec extends SafeVectorMatchers
+class CQTSpec extends FlatSpec
                       with SignalGen
-                      with FlatSpec 
+                      with SafeVectorMatchers
                       with ShouldMatchers {
   
   val sampleRate = 44100f

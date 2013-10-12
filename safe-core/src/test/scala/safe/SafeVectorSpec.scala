@@ -10,8 +10,8 @@ import org.scalacheck.Gen
 /**
  * Specification tests for [[safe.SafeVector]] 
  */
-class SafeVectorSpec extends SafeVectorMatchers 
-                             with FlatSpec 
+class SafeVectorSpec extends FlatSpec 
+                             with SafeVectorMatchers 
                              with ShouldMatchers 
                              with GeneratorDrivenPropertyChecks {
   
