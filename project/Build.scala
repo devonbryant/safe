@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+import com.typesafe.sbt.SbtStartScript
 
 object SafeBuild extends Build {
   val commonSettings = Seq(
@@ -18,7 +19,9 @@ object SafeBuild extends Build {
     )
   )
 
+  lazy val safeSettings = commonSettings ++ SbtStartScript.startScriptForClassesSettings
+
   lazy val root = Project(id = "safe-parent", base = file(".")).settings(commonSettings: _*) aggregate(core)
 
-  lazy val core = Project(id = "safe", base = file("safe-core")).settings(commonSettings: _*)
+  lazy val core = Project(id = "safe", base = file("safe-core")).settings(safeSettings: _*)
 }

@@ -1,5 +1,7 @@
 name := "safe"
 
+com.typesafe.sbt.SbtStartScript.StartScriptKeys.startScriptName <<= target / "run"
+
 libraryDependencies ++= Seq(
   "org.scalanlp"      %% "breeze"       % "0.5-SNAPSHOT",
   "com.github.scopt"  %% "scopt"        % "3.1.0",
