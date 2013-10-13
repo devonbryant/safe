@@ -45,11 +45,11 @@ object SpectralShape {
       
       var i = 0
       while (i < magSpecData.length) {
-        val v = magSpecData(i)
-        ms(0) += v * i
-        ms(1) += v * math.pow(i, 2)
-        ms(2) += v * math.pow(i, 3)
-        ms(3) += v * math.pow(i, 4)
+        var v = magSpecData(i)
+        v *= i; ms(0) += v
+        v *= i; ms(1) += v
+        v *= i; ms(2) += v
+        v *= i; ms(3) += v
         i += 1
       }
     
