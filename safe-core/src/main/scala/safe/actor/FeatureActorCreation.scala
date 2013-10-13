@@ -8,6 +8,12 @@ import scala.reflect.ClassTag
 
 trait FeatureActorCreation {
   
+  protected val count = new java.util.concurrent.atomic.AtomicInteger()
+  
+  def name: String
+  
+  def uniqueName: String = name + count.getAndIncrement()
+  
   def create(feat: Feature, 
              listeners: Seq[ActorRef], 
              poolSize: Int = 1)(implicit context: ActorContext): Option[ActorRef]
