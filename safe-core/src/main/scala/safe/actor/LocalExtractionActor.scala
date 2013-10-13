@@ -23,7 +23,7 @@ class LocalExtractionActor extends Actor with ActorLogging {
       
       
       // Create the actor tree for the plan
-      FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, Seq(featFinishListener), 2) match {
+      FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, Seq(featFinishListener), 1) match {
         case Success(actTree) => {
           itr foreach { file => actTree ! new LocalFileAudioIn(file) }
         }
