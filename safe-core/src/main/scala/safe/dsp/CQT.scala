@@ -18,7 +18,7 @@ object CQT {
   /** 
    * The CQT function expects the input to have already been run through a FFT
    */
-  def cqt(sampleFreq: Float,    
+  def cqt(sampleFreq: Float,
           bpo: Int = 24,
           freqMax: Float = 12543.854f, // G10 (MIDI note 127)
           freqMin: Float = 16.351599f, // C1 (MIDI note 12)
