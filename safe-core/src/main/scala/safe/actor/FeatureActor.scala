@@ -135,7 +135,7 @@ object FeatureActor {
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
       feat match {
         case Frame(_, frameSize, stepSize) => 
-          Some(pool(SplitActor.props(frameF(frameSize, stepSize), listeners), poolSize, uniqueName))
+          Some(context.actorOf(SplitActor.props(frameF(frameSize, stepSize), listeners), uniqueName))
         case _ => None
       }
       
