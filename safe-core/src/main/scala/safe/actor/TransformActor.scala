@@ -7,9 +7,11 @@ class TransformActor[A, B](f: A => B, next: Seq[ActorRef], metrics: Option[Metri
   
   next foreach { l => addListener(l) }
   
+  val metricsName = "Actor (" + self.path + ")"
+  
   def receive = {
     case a: A =>
-      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+      val timeCtx = startTimer(metricsName, metrics)
       try {
         gossip(f(a))
       }
@@ -18,7 +20,7 @@ class TransformActor[A, B](f: A => B, next: Seq[ActorRef], metrics: Option[Metri
             new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
       finally {
-        timeCtx foreach { _.stop() }
+        stopTimer(metricsName, timeCtx, metrics)
       }
   }
   

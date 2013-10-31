@@ -10,13 +10,23 @@ import safe.io.{ AudioIn, AudioStreamIterator, LocalFileAudioIn, TextFeatureWrit
 import javax.sound.sampled.AudioSystem
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{ MetricRegistry, Timer }
 
 trait FeatureActor extends Actor with Listeners {
   
   def addListener(l: ActorRef) = listeners add l
   def removeListener(l: ActorRef) = listeners remove l
 
+  def startTimer(metricsName: String, metrics: Option[MetricRegistry]) = {
+    metrics map { mr => (mr.timer(metricsName).time(), System.nanoTime()) }
+  }
+  
+  def stopTimer(metricsName: String, timerContext: Option[(Timer.Context, Long)], metrics: Option[MetricRegistry]) = {
+    for ((timer, start) <- timerContext; mtx <- metrics) {
+      timer.stop()
+      mtx.counter(metricsName + "total").inc(System.nanoTime() - start)
+    }
+  }
 }
 
 /**

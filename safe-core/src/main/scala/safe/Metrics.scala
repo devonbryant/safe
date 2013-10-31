@@ -16,7 +16,7 @@ object Metrics {
         val max = snapshot.getMax() * timeFactor
         val mean = snapshot.getMean() * timeFactor
         val median = snapshot.getMedian() * timeFactor
-        val total = snapshot.getValues().sum * timeFactor
+        val total = metrics.counter(name + "total").getCount() * timeFactor
         
         out.println(" -- " + name + " -- ")
         out.println(f"\tProcessed $count%d messages in $total%2.4fs")

@@ -7,9 +7,11 @@ class AggregateActor[A, B](agg: Aggregator[A, B], next: Seq[ActorRef], metrics: 
   
   next foreach { l => addListener(l) }
   
+  val metricsName = "Actor (" + self.path + ")"
+  
   def receive = {
     case a: A => 
-      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+      val timeCtx = startTimer(metricsName, metrics)
       try {
         agg.add(a) match {
           case Some(b) => gossip(b) // We have an aggregate result, send it off
@@ -21,7 +23,7 @@ class AggregateActor[A, B](agg: Aggregator[A, B], next: Seq[ActorRef], metrics: 
             new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
       finally {
-        timeCtx foreach { _.stop() }
+        stopTimer(metricsName, timeCtx, metrics)
       }
     }
   

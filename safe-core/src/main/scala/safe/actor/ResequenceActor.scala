@@ -14,9 +14,11 @@ class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef], metrics: Opti
   
   next foreach { l => addListener(l) }
   
+  val metricsName = "Actor (" + self.path + ")"
+  
   def receive = {
     case a: A =>
-      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+      val timeCtx = startTimer(metricsName, metrics)
       try {
         f(a) match {
           case SeqMetadata(id, num, total) => {
@@ -55,7 +57,7 @@ class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef], metrics: Opti
             new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
       finally {
-        timeCtx foreach { _.stop() }
+        stopTimer(metricsName, timeCtx, metrics)
       }
   }
   

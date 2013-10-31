@@ -7,11 +7,13 @@ import com.codahale.metrics.MetricRegistry
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
 
-class LocalExtractionActor(metrics: Option[MetricRegistry]) extends Actor with ActorLogging {
+class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor with ActorLogging {
+  
+  val metricsName = "Actor (" + self.path + ")"
   
   def receive = {
     case RunExtraction(id, plan, finishListener, path, recur) => {
-      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+      val timeCtx = startTimer(metricsName, metrics)
       
       val itr = new LocalAudioFileIterator(path, recur)
       
@@ -37,7 +39,7 @@ class LocalExtractionActor(metrics: Option[MetricRegistry]) extends Actor with A
           finishListener ! FinishedPlan(id)
         }
       }
-      timeCtx foreach { _.stop() }
+      stopTimer(metricsName, timeCtx, metrics)
     }
   }
   

@@ -26,6 +26,8 @@ class CSVWriteActor(outputDir: String,
   
   next foreach { l => addListener(l) }
   
+  val metricsName = "Actor (" + self.path + ")"
+  
   def receive = {
     case RealFeatureFrame(inName, data, idx, total) => {
       write(inName, idx, total, data) match {
@@ -44,7 +46,7 @@ class CSVWriteActor(outputDir: String,
   }
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
-    val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+    val timeCtx = startTimer(metricsName, metrics)
     
     val writer = writers.getOrElseUpdate(
         name, writerFor(outDirPath + name + "." + featName + ".csv"))
@@ -56,7 +58,7 @@ class CSVWriteActor(outputDir: String,
       gossip(FinishedFeature(name, featName))
     }
     
-    timeCtx foreach { _.stop() }
+    stopTimer(metricsName, timeCtx, metrics)
     
     result
   }

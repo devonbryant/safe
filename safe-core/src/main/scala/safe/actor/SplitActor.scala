@@ -7,9 +7,11 @@ class SplitActor[A, B](f: A => Iterator[B], next: Seq[ActorRef], metrics: Option
   
   next foreach { l => addListener(l) }
   
+  val metricsName = "Actor (" + self.path + ")"
+  
   def receive = {
     case a: A =>
-      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+      val timeCtx = startTimer(metricsName, metrics)
       try {
         f(a) foreach { b => gossip(b) }
       }
@@ -18,7 +20,7 @@ class SplitActor[A, B](f: A => Iterator[B], next: Seq[ActorRef], metrics: Option
             new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
       finally {
-        timeCtx foreach { _.stop() }
+        stopTimer(metricsName, timeCtx, metrics)
       }
   }
   
