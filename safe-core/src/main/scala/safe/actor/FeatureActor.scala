@@ -10,6 +10,7 @@ import safe.io.{ AudioIn, AudioStreamIterator, LocalFileAudioIn, TextFeatureWrit
 import javax.sound.sampled.AudioSystem
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
+import com.codahale.metrics.MetricRegistry
 
 trait FeatureActor extends Actor with Listeners {
   
@@ -42,7 +43,7 @@ object FeatureActor {
   def actorTree(plan: Plan, 
                 actorCreation: Map[Class[_ <: Feature], FeatureActorCreation] = defaultActorCreators(),
                 finishListeners: Seq[ActorRef] = Nil, 
-                poolSize: Int = 1)(implicit context: ActorContext): Try[ActorRef] = {
+                poolSize: Int = 1)(implicit context: ActorContext, metrics: Option[MetricRegistry]): Try[ActorRef] = {
 
     def featAct(feat: Feature, listeners: Seq[ActorRef], poolSize: Int): Try[ActorRef] = 
       if (actorCreation.contains(feat.getClass)) {
@@ -74,9 +75,10 @@ object FeatureActor {
     val name = "resequence"
       
     val seqF: FeatureFrame[_] => SeqMetadata = (a) => SeqMetadata(a.inputName, a.index, a.total)
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext, 
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
-        case r: Resequence => Some(context.actorOf(ResequenceActor.props(seqF, listeners), uniqueName))
+        case r: Resequence => Some(context.actorOf(ResequenceActor.props(seqF, listeners, metrics), uniqueName))
         case _ => None
       }
     }
@@ -89,10 +91,11 @@ object FeatureActor {
     val name = "csv"
       
     val localW: String => TextFeatureWriter = TextFeatureWriter.apply _
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case CSVOut(out, _, name, prec, delim) => 
-            Some(context.actorOf(CSVWriteActor.props(out, localW, name, prec, delim, listeners), uniqueName))
+            Some(context.actorOf(CSVWriteActor.props(out, localW, name, prec, delim, listeners, metrics), uniqueName))
         case _ => None
       }
     }
@@ -105,9 +108,10 @@ object FeatureActor {
     val name = "in"
       
     val inputF = identity[AudioIn] _
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
-        case i: Input => Some(pool(TransformActor.props(inputF, listeners), poolSize, uniqueName))
+        case i: Input => Some(pool(TransformActor.props(inputF, listeners, metrics), poolSize, uniqueName))
         case _ => None
       }
     }
@@ -132,10 +136,11 @@ object FeatureActor {
       }
     }
     
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case Frame(_, frameSize, stepSize) => 
-          Some(context.actorOf(SplitActor.props(frameF(frameSize, stepSize), listeners), uniqueName))
+          Some(context.actorOf(SplitActor.props(frameF(frameSize, stepSize), listeners, metrics), uniqueName))
         case _ => None
       }
       
@@ -152,10 +157,11 @@ object FeatureActor {
       (a: SafeVector[Double]) => SafeVector.zeros[Double](lead) ++ a ++ SafeVector.zeros[Double](trail)
     }
     
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case ZeroPad(_, _, _, leading, trailing) =>
-          Some(pool(TransformActor.props(liftDD(padF(leading, trailing)), listeners), poolSize, uniqueName))
+          Some(pool(TransformActor.props(liftDD(padF(leading, trailing)), listeners, metrics), poolSize, uniqueName))
         case _ => None
       }
     }
@@ -175,10 +181,11 @@ object FeatureActor {
       case _ => dsp.Window.hann(n) // Default to hann
     }
     
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case Window(_, frameSize, _, winType) =>
-          Some(pool(TransformActor.props(liftDD(windowF(winType, frameSize)), listeners), 
+          Some(pool(TransformActor.props(liftDD(windowF(winType, frameSize)), listeners, metrics), 
                     poolSize, 
                     winType + count.getAndIncrement()))
         case _ => None
@@ -197,10 +204,11 @@ object FeatureActor {
       case ComplexFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fftc(data), idx, total)
     }
     
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case f: FFT =>
-          Some(pool(TransformActor.props(fftF, listeners), poolSize, uniqueName))
+          Some(pool(TransformActor.props(fftF, listeners, metrics), poolSize, uniqueName))
         case _ => None
       }
     }
@@ -212,10 +220,11 @@ object FeatureActor {
   val magSpecActorCreation = new FeatureActorCreation {
     val name = "magnitude"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case m: MagnitudeSpectrum =>
-          Some(pool(TransformActor.props(liftCD(dsp.PowerSpectrum.magnitude), listeners), poolSize, uniqueName))
+          Some(pool(TransformActor.props(liftCD(dsp.PowerSpectrum.magnitude), listeners, metrics), poolSize, uniqueName))
         case _ => None
       }
     }
@@ -227,10 +236,11 @@ object FeatureActor {
   val specFluxActorCreation = new FeatureActorCreation {
     val name = "spectralFlux"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case SpectralFlux(_, _, _, _, diffLen) => 
-          Some(context.actorOf(AggregateActor.props(new SpectralFluxAggregator(diffLen), listeners), uniqueName))
+          Some(context.actorOf(AggregateActor.props(new SpectralFluxAggregator(diffLen), listeners, metrics), uniqueName))
         case _ => None
       }
     }
@@ -242,10 +252,11 @@ object FeatureActor {
   val onsetFilterActorCreation = new FeatureActorCreation {
     val name = "onsetFilter"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case SpectralOnsetFilter(sr, fs, _, _) =>
-          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsetFilter(sr, fs)), listeners), 
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsetFilter(sr, fs)), listeners, metrics), 
                     poolSize, 
                     uniqueName))
         case _ => None
@@ -259,10 +270,11 @@ object FeatureActor {
   val cqtActorCreation = new FeatureActorCreation {
     val name = "cqt"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case CQT(sr, _, _, bpo, fmax, fmin, thresh) =>
-          Some(pool(TransformActor.props(liftCC(dsp.CQT.cqt(sr, bpo, fmax, fmin, thresh)), listeners), 
+          Some(pool(TransformActor.props(liftCC(dsp.CQT.cqt(sr, bpo, fmax, fmin, thresh)), listeners, metrics), 
                     poolSize, 
                     uniqueName))
         case _ => None
@@ -276,10 +288,11 @@ object FeatureActor {
   val mfccActorCreation = new FeatureActorCreation {
     val name = "mfcc"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case MFCC(sr, fr, _, _, coef, filt, fmin, fmax) =>
-          Some(pool(TransformActor.props(liftDD(dsp.MFCC.mfcc(sr, fr, coef, filt, fmin, fmax)), listeners), 
+          Some(pool(TransformActor.props(liftDD(dsp.MFCC.mfcc(sr, fr, coef, filt, fmin, fmax)), listeners, metrics), 
                     poolSize, 
                     uniqueName))
         case _ => None
@@ -293,10 +306,13 @@ object FeatureActor {
   val specShapeActorCreation = new FeatureActorCreation {
     val name = "spectralShape"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case s: SpectralShape =>
-          Some(pool(TransformActor.props(liftDD(dsp.SpectralShape.statistics), listeners), poolSize, uniqueName))
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralShape.statistics), listeners, metrics), 
+                    poolSize, 
+                    uniqueName))
         case _ => None
       }
     }
@@ -308,10 +324,11 @@ object FeatureActor {
   val specOnsetActorCreation = new FeatureActorCreation {
     val name = "spectralOnsets"
       
-    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext) = {
+    def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
+                                                                           metrics: Option[MetricRegistry]) = {
       feat match {
         case SpectralOnsets(sr, _, step, _, _) =>
-          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsets(sr, step)), listeners), 
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsets(sr, step)), listeners, metrics), 
                     poolSize, 
                     uniqueName))
         case _ => None

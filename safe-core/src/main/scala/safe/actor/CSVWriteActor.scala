@@ -4,13 +4,15 @@ import akka.actor.{ ActorRef, Props, Status }
 import safe.io.{ CSVFeatureWriter, TextFeatureWriter, Writeable }
 import scala.collection.mutable
 import scala.util.{ Failure, Try }
+import com.codahale.metrics.MetricRegistry
 
 class CSVWriteActor(outputDir: String,
                     writerFor: String => TextFeatureWriter,
                     featName: String,
                     precision: Int, 
                     delim: String,
-                    next: Seq[ActorRef]) extends FeatureActor {
+                    next: Seq[ActorRef],
+                    metrics: Option[MetricRegistry]) extends FeatureActor {
   
   implicit val doubWriteable = TextFeatureWriter.precisionFmtWriteable[Double](precision)
   implicit val cmplxWriteable = TextFeatureWriter.complexPrecisionFmtWriteable(precision)
@@ -42,6 +44,8 @@ class CSVWriteActor(outputDir: String,
   }
   
   def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
+    val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
+    
     val writer = writers.getOrElseUpdate(
         name, writerFor(outDirPath + name + "." + featName + ".csv"))
     
@@ -51,12 +55,21 @@ class CSVWriteActor(outputDir: String,
       writers -= name
       gossip(FinishedFeature(name, featName))
     }
+    
+    timeCtx foreach { _.stop() }
+    
     result
   }
   
 }
 
 object CSVWriteActor {
-  def props(outputDir: String, writerFor: String => TextFeatureWriter, featName: String, precision: Int, delim: String, next: Seq[ActorRef] = Nil) =
-    Props(classOf[CSVWriteActor], outputDir, writerFor, featName, precision, delim, next)
+  def props(outputDir: String, 
+            writerFor: String => TextFeatureWriter, 
+            featName: String, 
+            precision: Int, 
+            delim: String, 
+            next: Seq[ActorRef] = Nil,
+            metrics: Option[MetricRegistry] = None) =
+    Props(classOf[CSVWriteActor], outputDir, writerFor, featName, precision, delim, next, metrics)
 }

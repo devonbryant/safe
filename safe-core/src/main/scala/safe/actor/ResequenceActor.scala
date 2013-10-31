@@ -2,8 +2,9 @@ package safe.actor
 
 import akka.actor.{ ActorRef, Props, Status }
 import scala.collection.mutable
+import com.codahale.metrics.MetricRegistry
 
-class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef]) extends FeatureActor {
+class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef], metrics: Option[MetricRegistry]) extends FeatureActor {
   
   // Used to keep track of the last number processed in the sequence
   private[this] val sequenceCounts = new mutable.HashMap[String, Int]()
@@ -15,6 +16,7 @@ class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef]) extends Featu
   
   def receive = {
     case a: A =>
+      val timeCtx = metrics map { _.timer("Actor (" + self.path + ")").time() }
       try {
         f(a) match {
           case SeqMetadata(id, num, total) => {
@@ -52,6 +54,9 @@ class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef]) extends Featu
         case e: Throwable => sender ! Status.Failure(
             new RuntimeException(self.path.toString + " failed to handle message " + a, e))
       }
+      finally {
+        timeCtx foreach { _.stop() }
+      }
   }
   
 }
@@ -59,6 +64,6 @@ class ResequenceActor[A](f: A => SeqMetadata, next: Seq[ActorRef]) extends Featu
 case class SeqMetadata(id: String, num: Int, total: Int)
 
 object ResequenceActor {
-  def props[A](f: A => SeqMetadata, next: Seq[ActorRef] = Nil) = 
-    Props(classOf[ResequenceActor[A]], f, next)
+  def props[A](f: A => SeqMetadata, next: Seq[ActorRef] = Nil, metrics: Option[MetricRegistry] = None) = 
+    Props(classOf[ResequenceActor[A]], f, next, metrics)
 }

@@ -5,6 +5,7 @@ import akka.routing.RoundRobinRouter
 import safe.feature.Feature
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import com.codahale.metrics.MetricRegistry
 
 trait FeatureActorCreation {
   
@@ -16,7 +17,7 @@ trait FeatureActorCreation {
   
   def create(feat: Feature, 
              listeners: Seq[ActorRef], 
-             poolSize: Int = 1)(implicit context: ActorContext): Option[ActorRef]
+             poolSize: Int = 1)(implicit context: ActorContext, metrics: Option[MetricRegistry]): Option[ActorRef]
   
   def pool(props: Props, size: Int, name: String)(implicit context: ActorContext): ActorRef = {
     if (size == 1) context.actorOf(props, name)

@@ -4,6 +4,7 @@ import safe.feature.Defaults
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import safe.actor._
 import safe.feature._
+import com.codahale.metrics.MetricRegistry
 
 /**
  * Runs batch feature extraction on local files, taking the following command line arguments:
@@ -21,16 +22,19 @@ import safe.feature._
  *       sample rate in Hz of all audio files (default = 44100)
  * -o <file> | --output-dir <file>
  *       directory to write featre output to (default = './')
+ * -m | --metrics
+ *       flag to capture/print metrics (default = false)
  * }}}
  * 
  */
 object Safe extends App {
   
-  val startTime = System.currentTimeMillis
+  val startTime = System.nanoTime()
   
   // Input configuration args
-  case class SafeConfig(in: String = "", recur: Boolean = false, plan: String = "", feature: String = "",
-                        sampleRate: Float = Defaults.sampleRate, out: String = Defaults.outDir)
+  case class SafeConfig(in: String = "", recur: Boolean = false, plan: String = "", 
+                        feature: String = "", sampleRate: Float = Defaults.sampleRate, 
+                        out: String = Defaults.outDir, metrics: Boolean = false)
   
   
   // CLI args parser
@@ -48,6 +52,8 @@ object Safe extends App {
       sc.copy(sampleRate = x.toFloat) } text("sample rate in Hz of all audio files (default = 44100)")
     opt[String]('o', "output-dir") valueName("<file>") action { (x, sc) =>
       sc.copy(out = x) } text("directory to write featre output to (default = './')")
+    opt[Unit]('m', "metrics") action { (_, sc) =>
+      sc.copy(metrics = true) } text("flag to capture/print metrics (default = false)")
   }
   
   def validate(sc: SafeConfig): Option[SafeConfig] = {
@@ -74,12 +80,13 @@ object Safe extends App {
       else featParser.parsePlan(conf.feature)
       
     if (parsedPlans.isSuccess) {
-      val system = ActorSystem("TestSys")
+      val system = ActorSystem("safe-local")
       
       val plans = parsedPlans.get
       
       if (plans.length > 0) {
-        val planActor = system.actorOf(LocalExtractionActor.props())
+        val metrics = if (conf.metrics) Some(new MetricRegistry()) else None
+        val planActor = system.actorOf(LocalExtractionActor.props(metrics), "extraction")
         val listener = system.actorOf(Props(classOf[FinishActor], plans.length))
         
         plans.zipWithIndex foreach {
@@ -88,8 +95,11 @@ object Safe extends App {
     
         system.awaitTermination()
         
-        val totalTime = System.currentTimeMillis - startTime
-        Console.println("Ran extraction in " + totalTime + " ms")
+        if (conf.metrics) {
+          val totalTime = (System.nanoTime() - startTime) * Metrics.timeFactor
+          Console.println(f"Ran extraction in $totalTime%2.4f sec")
+          metrics foreach { Metrics.printTiming(Console.out, _) }
+        }
       }
       else {
         Console.println("No plans parsed from " + conf.plan + conf.feature)
