@@ -121,7 +121,7 @@ object FeatureActor {
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
                                                                            metrics: Option[MetricRegistry]) = {
       feat match {
-        case i: Input => Some(pool(TransformActor.props(inputF, listeners, metrics), poolSize, uniqueName))
+        case i: Input => Some(context.actorOf(TransformActor.props(inputF, listeners, metrics), uniqueName))
         case _ => None
       }
     }
@@ -150,7 +150,7 @@ object FeatureActor {
                                                                            metrics: Option[MetricRegistry]) = {
       feat match {
         case Frame(_, frameSize, stepSize) => 
-          Some(context.actorOf(SplitActor.props(frameF(frameSize, stepSize), listeners, metrics), uniqueName))
+          Some(pool(SplitActor.props(frameF(frameSize, stepSize), listeners, metrics), poolSize, uniqueName))
         case _ => None
       }
       
