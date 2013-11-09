@@ -4,8 +4,8 @@ import org.scalatest.matchers.{ Matcher, MatchResult }
 import scala.util.{ Try, Success, Failure }
 
 trait TryMatchers {
-  def failWith[A](clz: Class[_], msg: String): Matcher[Try[A]] = Matcher {
-    (left: Try[A]) => left match {
+  def failWith(clz: Class[_], msg: String): Matcher[Try[_]] = Matcher {
+    (left: Try[_]) => left match {
       case Failure(exc) => {
         MatchResult(exc.getClass() == clz && exc.getMessage() == msg,
                     excMsg(clz, msg) + " did not equal " + excMsg(exc),
