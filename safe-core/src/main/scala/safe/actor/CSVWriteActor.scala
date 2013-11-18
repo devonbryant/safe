@@ -29,15 +29,15 @@ class CSVWriteActor(outputDir: String,
   val metricsName = "Actor (" + self.path + ")"
   
   def receive = {
-    case RealFeatureFrame(inName, data, idx, total) => {
-      write(inName, idx, total, data) match {
+    case RealFeatureFrame(id, inName, data, idx, total) => {
+      write(id, inName, idx, total, data) match {
         case Failure(exc) => sender ! Status.Failure(
             new RuntimeException(self.path.toString + " failed writing " + inName + " frame " + idx, exc))
         case _ => // Successfully wrote feature frame
       }
     }
-    case ComplexFeatureFrame(inName, data, idx, total) => {
-      write(inName, idx, total, data) match {
+    case ComplexFeatureFrame(id, inName, data, idx, total) => {
+      write(id, inName, idx, total, data) match {
         case Failure(exc) => sender ! Status.Failure(
             new RuntimeException(self.path.toString + " failed writing " + inName + " frame " + idx, exc))
         case _ => // Successfully wrote feature frame
@@ -45,7 +45,7 @@ class CSVWriteActor(outputDir: String,
     }
   }
   
-  def write[A](name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
+  def write[A](id: String, name: String, idx: Int, total: Int, a: A)(implicit w: Writeable[A, String]): Try[Unit] = {
     val timeCtx = startTimer(metricsName, metrics)
     
     val writer = writers.getOrElseUpdate(
@@ -55,7 +55,7 @@ class CSVWriteActor(outputDir: String,
     if (idx == total) {
       writer.close()
       writers -= name
-      gossip(FinishedFeature(name, featName))
+      gossip(FinishedFeature(id, name, featName))
     }
     
     stopTimer(metricsName, timeCtx, metrics)

@@ -40,7 +40,7 @@ class SpectralFluxAggregator(diffLen: Int) extends Aggregator[RealFeatureFrame, 
       fluxCache.remove(name)
       counted.remove(name)
       
-      Some(RealFeatureFrame(name, SafeVector(tempFlux.flux), 1, 1))
+      Some(RealFeatureFrame(frame.id, name, SafeVector(tempFlux.flux), 1, 1))
     }
     else None
   }

@@ -117,7 +117,7 @@ object FeatureActor {
   val inputActorCreation = new FeatureActorCreation {
     val name = "in"
       
-    val inputF = identity[AudioIn] _
+    val inputF = identity[(String, AudioIn)] _
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
                                                                            metrics: Option[MetricRegistry]) = {
       feat match {
@@ -133,16 +133,18 @@ object FeatureActor {
   val frameActorCreation = new FeatureActorCreation {
     val name = "frame"
       
-    def frameF(frameSize: Int, stepSize: Int) = (in: AudioIn) => {
-      val audioStream = AudioSystem.getAudioInputStream(in.stream)
-      val inputName = in.name
+    def frameF(frameSize: Int, stepSize: Int) = (in: (String, AudioIn)) => {
+      val planId = in._1
+      val audioIn = in._2
+      val audioStream = AudioSystem.getAudioInputStream(audioIn.stream)
+      val inputName = audioIn.name
       val frameItr = AudioStreamIterator(audioStream, frameSize, stepSize)
       val total = frameItr.size
 
       // Create the frames from the audio stream
       frameItr.zipWithIndex map {
         case (data, idx) =>
-          RealFeatureFrame(inputName, data, idx + 1, total)
+          RealFeatureFrame(planId, inputName, data, idx + 1, total)
       }
     }
     
@@ -210,8 +212,8 @@ object FeatureActor {
     val name = "fft"
       
     val fftF: Any => ComplexFeatureFrame = {
-      case RealFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fft(data), idx, total)
-      case ComplexFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, dsp.FFT.fftc(data), idx, total)
+      case RealFeatureFrame(id, in, data, idx, total) => ComplexFeatureFrame(id, in, dsp.FFT.fft(data), idx, total)
+      case ComplexFeatureFrame(id, in, data, idx, total) => ComplexFeatureFrame(id, in, dsp.FFT.fftc(data), idx, total)
     }
     
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
@@ -349,18 +351,18 @@ object FeatureActor {
   // TODO There is a lot of duplication between the feature frames that could be abstracted
   // The different versions of these lift functions is a sign of that
   private[this] def liftDD(f: SafeVector[Double] => SafeVector[Double]): RealFeatureFrame => RealFeatureFrame = {
-    case RealFeatureFrame(in, data, idx, total) => RealFeatureFrame(in, f(data), idx, total)
+    case RealFeatureFrame(id, in, data, idx, total) => RealFeatureFrame(id, in, f(data), idx, total)
   }
 
   private[this] def liftDC(f: SafeVector[Double] => SafeVector[Complex]): RealFeatureFrame => ComplexFeatureFrame = {
-    case RealFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, f(data), idx, total)
+    case RealFeatureFrame(id, in, data, idx, total) => ComplexFeatureFrame(id, in, f(data), idx, total)
   }
 
   private[this] def liftCC(f: SafeVector[Complex] => SafeVector[Complex]): ComplexFeatureFrame => ComplexFeatureFrame = {
-    case ComplexFeatureFrame(in, data, idx, total) => ComplexFeatureFrame(in, f(data), idx, total)
+    case ComplexFeatureFrame(id, in, data, idx, total) => ComplexFeatureFrame(id, in, f(data), idx, total)
   }
 
   private[this] def liftCD(f: SafeVector[Complex] => SafeVector[Double]): ComplexFeatureFrame => RealFeatureFrame = {
-    case ComplexFeatureFrame(in, data, idx, total) => RealFeatureFrame(in, f(data), idx, total)
+    case ComplexFeatureFrame(id, in, data, idx, total) => RealFeatureFrame(id, in, f(data), idx, total)
   }
 }

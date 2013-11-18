@@ -21,7 +21,9 @@ object SafeBuild extends Build {
 
   lazy val safeSettings = commonSettings ++ SbtStartScript.startScriptForClassesSettings
 
-  lazy val root = Project(id = "safe-parent", base = file(".")).settings(commonSettings: _*) aggregate(core)
+  lazy val root = Project(id = "safe-parent", base = file(".")).settings(commonSettings: _*) aggregate(core, distributed)
 
   lazy val core = Project(id = "safe", base = file("safe-core")).settings(safeSettings: _*)
+
+  lazy val distributed = Project(id = "safe-dist", base = file("safe-dist")).settings(safeSettings: _*) dependsOn core
 }

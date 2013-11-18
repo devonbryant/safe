@@ -87,7 +87,7 @@ object Safe extends App {
       if (plans.length > 0) {
         val metrics = if (conf.metrics) Some(new MetricRegistry()) else None
         val planActor = system.actorOf(LocalExtractionActor.props(metrics), "extraction")
-        val listener = system.actorOf(Props(classOf[FinishActor], plans.length))
+        val listener = system.actorOf(Props(classOf[FinishActor], plans.length, conf.metrics))
         
         plans.zipWithIndex foreach {
           case (plan, i) => planActor ! RunExtraction("plan" + i, plan, listener, conf.in, conf.recur)
@@ -114,12 +114,20 @@ object Safe extends App {
   }
 }
 
-class FinishActor(numPlans: Int) extends Actor {
+class FinishActor(numPlans: Int, printMetrics: Boolean = false) extends Actor {
   var i = 0
   def receive = {
-    case FinishedPlan(_) => {
+    case FinishedExtraction(_) => {
       i += 1
       if (i >= numPlans) context.system.shutdown()
     }
+    case ExtractionFailed(id, msg) => {
+      Console.err.print("Error: " + msg)
+      context.system.shutdown()
+    }
+    case RunningExtraction(id, numFiles, numFeats) => if (printMetrics) {
+      Console.println("Extracting " + numFeats + " features from " + numFiles + " files.")
+    }
+    case _ => // don't care
   }
 }

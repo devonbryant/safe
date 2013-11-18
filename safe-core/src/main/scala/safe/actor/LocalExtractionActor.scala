@@ -14,28 +14,45 @@ class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor
   
   val poolSize = context.system.settings.config.getInt("safe.router-pool-size")
   val thresh = 2 * poolSize
+  var running = 0
   
   val planActors = mutable.Map[String, ActorRef]() // Plan Id -> Extraction Actor
-  val waitIterators = mutable.Map[String, WaitCountIterator]() // Plan Id -> Wait Count Itr
+  val planListeners = mutable.Map[String, ActorRef]() // Plan Id -> Finish Listener
+  val inputIterators = mutable.Map[String, Iterator[String]]() // Plan Id -> Input Itr
   
   def receive = {
+    case fi: FinishedInput => {
+      running -= 1
+      sendBatch()
+      
+      //planListeners.get(fi.id) foreach { _ ! fi }
+    }
+    case FinishedExtraction(id) => {
+      // TODO Send PoisonPill?
+      planActors.remove(id)
+      inputIterators.remove(id)
+      planListeners.remove(id) foreach { _ ! FinishedExtraction(id) }
+    }
     case RunExtraction(id, plan, finishListener, path, recur) => {
       val timeCtx = startTimer(metricsName, metrics)
       
-      val itr = new LocalAudioFileIterator(path, recur)
+      val fileItr = new LocalAudioFileIterator(path, recur)
       
       // Waiting for n number of files and m features to finish
-      val numFiles = itr.size()
+      val numFiles = fileItr.size()
       val numFeats = FeatureExtraction.featureCount(plan)
-      val total = numFiles * numFeats
       
       // Create an actor to wait for each feature to finish and let us 
       // know when the plan has finished
       val planFinishActor = context.actorOf(
-          AggregateActor.props(new FeatureFinishAggregator(id, total), Seq(finishListener)))
+          AggregateActor.props(new PlanFinishAggregator(numFiles, numFeats), Seq(self)))
       
-      // We also listen for feature finish messages so we can throttle the file input rate
-      val featListeners = List(self, planFinishActor)
+      // Create an actor to let us know when a given input/file has finished
+      // so we can throttle the file input rate
+      val inputFinishActor = context.actorOf(
+          AggregateActor.props(new InputFinishAggregator(numFeats), Seq(self)))
+      
+      val featListeners = List(inputFinishActor, planFinishActor)
       val featFinishListener = context.actorOf(Props.empty.withRouter(BroadcastRouter(featListeners)))
       
       
@@ -44,70 +61,39 @@ class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor
       FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, Seq(featFinishListener), poolSize) match {
         case Success(actTree) => {
            planActors.put(id, actTree)
-           waitIterators.put(id, new WaitCountIterator(numFeats, itr))
+           planListeners.put(id, finishListener)
+           inputIterators.put(id, fileItr)
+           
+           finishListener ! RunningExtraction(id, numFiles, numFeats)
+           
            sendBatch()
         }
         case Failure(exc) => {
           log.error("Unable to create actor tree for plan (" + id + ") " + plan, exc)
-          finishListener ! FinishedPlan(id)
+          finishListener ! ExtractionFailed(id, "Unable to create actor tree for plan " + plan + ", " + exc.getMessage())
         }
       }
       
       stopTimer(metricsName, timeCtx, metrics)
     }
-    case FinishedFeature(inputName, _) => {
-      waitIterators.values.foreach { _.finished(inputName) }
-      sendBatch()
-    }
   }
   
   // Send the next batch of input files
   def sendBatch() = {
-    def canSend() = {
-      val waiting = waitIterators.values.foldLeft(0) { (cnt, itr) => cnt + itr.waitSize() }
-      waiting < thresh && waitIterators.values.exists(_.hasNext())
-    }
+    
+    def canSend() = (running < thresh) && inputIterators.exists(_._2.hasNext)
     
     while(canSend()) {
-      waitIterators.find(_._2.hasNext()) foreach { case (id, itr) =>
-        planActors(id) ! itr.next()
-      }
-    }
-    
-    // Clean up
-    val removePlans = for ((id, itr) <- waitIterators if !itr.hasNext()) yield id
-    removePlans foreach { id => 
-      planActors.remove(id) // TODO we should stop the actors, use PoisonPill?
-      waitIterators.remove(id)
+      for {
+        (id, itr) <- inputIterators.find(_._2.hasNext)
+        act <- planActors.get(id)
+      } act ! (id, new LocalFileAudioIn(itr.next))
+      
+      running += 1
     }
   }
 }
 
 object LocalExtractionActor {
   def props(metrics: Option[MetricRegistry] = None): Props = Props(classOf[LocalExtractionActor], metrics)
-}
-
-protected class WaitCountIterator(featCount: Int, 
-                                  fileItr: LocalAudioFileIterator) extends Iterator[LocalFileAudioIn] {
-  
-  val sentFiles = mutable.Map[String, Int]() // File name -> Waiting feature count
-  
-  def waitSize() = sentFiles.size
-  
-  def hasNext() = fileItr.hasNext()
-  
-  def next() = {
-    val fileIn = new LocalFileAudioIn(fileItr.next())
-    sentFiles.put(fileIn.name, featCount)
-    fileIn
-  }
-  
-  def finished(fileName: String) = {
-    sentFiles.get(fileName) foreach { count =>
-      if (count <= 1) sentFiles.remove(fileName)
-      else sentFiles(fileName) -= 1
-    }
-    
-    !fileItr.hasNext()
-  }
 }
