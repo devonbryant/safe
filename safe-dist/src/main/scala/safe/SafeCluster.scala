@@ -31,7 +31,7 @@ object SafeCluster extends App {
         
       val config = ConfigFactory.parseString(
           s"""
-          akka.remote.netty.tcp.hostname=${selfIp}
+          akka.remote.netty.tcp.hostname="${selfIp}"
           akka.remote.netty.tcp.port=${tcpPort}
           akka.cluster.roles = [${roles.mkString(", ")}]
           """).withFallback(ConfigFactory.load())
