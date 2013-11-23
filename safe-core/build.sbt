@@ -1,5 +1,7 @@
 name := "safe"
 
+mainClass in Compile := Some("safe.Safe")
+
 com.typesafe.sbt.SbtStartScript.StartScriptKeys.startScriptName <<= target / "run"
 
 libraryDependencies ++= Seq(

@@ -26,9 +26,12 @@ object SafeCluster extends App {
     case Some(ClusterConfig(web, webPort, tcpPort)) => {
       
       val roles = if (web) List("manager", "worker") else List("worker")
+      
+      val selfIp = java.net.InetAddress.getLocalHost().getHostAddress()
         
       val config = ConfigFactory.parseString(
           s"""
+          akka.remote.netty.tcp.hostname=${selfIp}
           akka.remote.netty.tcp.port=${tcpPort}
           akka.cluster.roles = [${roles.mkString(", ")}]
           """).withFallback(ConfigFactory.load())

@@ -3,7 +3,7 @@ package safe.cluster
 import akka.actor.{ Actor, ActorRef, ActorLogging, Props }
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
-import safe.actor.FinishedExtraction
+import safe.actor.{ FinishedExtraction, RunningExtraction }
 import safe.feature._
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -17,12 +17,14 @@ class DistributedExtractionManager extends Actor with ActorLogging {
   
   val empty: ExtractionStatus = CompletedStatus("", 0, 0, 0)
   
-  val waiting = mutable.Map[String, (Long, Int)]()
+  case class WaitStatus(startTimeMillis: Long, numWorkers: Int, numFiles: Int)
+  
+  val waiting = mutable.Map[String, WaitStatus]()
   val finished = mutable.Map[String, ExtractionStatus]()
   
   def receive = {
     case DistributeExtraction(id, inDir, recur, outDir, features, sr) => {
-      waiting.put(id, (System.currentTimeMillis, workers.length))
+      waiting.put(id, WaitStatus(System.currentTimeMillis, workers.length, 0))
       
       val featParser = new FeatureParser(sr, outDir)
       featParser.parsePlan(features) match {
@@ -53,9 +55,15 @@ class DistributedExtractionManager extends Actor with ActorLogging {
         Future.fold(allStatus)(empty)(sum) pipeTo sender
       }
     }
+    case RunningExtraction(id, numFiles, numFeats) => {
+      for {
+        WaitStatus(startTime, remaining, currFiles) <- waiting.get(id)
+        newWait = WaitStatus(startTime, remaining, currFiles + numFiles)
+      } waiting.put(id, newWait)
+    }
     case FinishedExtraction(id) => {
       // Decrement the number we're waiting for
-      for ((startTime, remaining) <- waiting.get(id)) {
+      for (WaitStatus(startTime, remaining, numFiles) <- waiting.get(id)) {
         if (remaining <= 1) {
           // We've finished, update the status
           finished.put(id, FinishedStatus(id, System.currentTimeMillis - startTime))
@@ -64,9 +72,10 @@ class DistributedExtractionManager extends Actor with ActorLogging {
           // Clear the workers status
           workers foreach { _ ! ClearStatus(id) }
           
-          println("Finished " + id + " in " + (System.currentTimeMillis - startTime) + " ms")
+          println("Finished plan " + id + 
+              ".  Extracted " + numFiles + " files in " + (System.currentTimeMillis - startTime) + " ms")
         }
-        else waiting.put(id, (startTime, remaining - 1))
+        else waiting.put(id, WaitStatus(startTime, remaining - 1, numFiles))
       }
     }
     case RegisterWorker => {

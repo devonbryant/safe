@@ -35,6 +35,7 @@ class DistributedExtractionWorker extends Actor with ActorLogging {
     }
     case RunningExtraction(id, numFiles, numFeats) => {
       extractionStatus.put(id, CompletedStatus(id, 0, numFiles, numFeats))
+      finishListeners.get(id) foreach { _ ! RunningExtraction(id, numFiles, numFeats) }
     }
     case ExtractionFailed(id, reason) => {
       extractionStatus.put(id, FailedStatus(id, reason))
