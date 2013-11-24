@@ -13,7 +13,7 @@ class DistributedExtractionWorker extends Actor with ActorLogging {
   val cluster = Cluster(context.system)
   
   // Local extraction actor to delegate work to
-  val localExtraction = context.actorOf(LocalExtractionActor.props())
+  val localExtraction = context.actorOf(LocalExtractionActor.props(true))
   
   val extractionStatus = mutable.Map[String, ExtractionStatus]()
   val finishListeners = mutable.Map[String, ActorRef]()

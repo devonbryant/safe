@@ -5,11 +5,12 @@ import akka.io.IO
 import spray.can.Http
 import safe.cluster._
 import com.typesafe.config.ConfigFactory
+import scala.util.Try
 
 object SafeCluster extends App {
   
   // Input configuration args
-  case class ClusterConfig(web: Boolean = false, webPort: Int = 8080, tcpPort: Int = -1)
+  case class ClusterConfig(web: Boolean = false, webPort: Int = 8080, tcpPort: Int = 2551)
 
   // CLI args parser
   val cliParser = new scopt.OptionParser[ClusterConfig]("safe-dist") {
@@ -19,7 +20,7 @@ object SafeCluster extends App {
     opt[Int]('w', "web-port") action { (x, cc) =>
       cc.copy(webPort = x) } text("port to run the web interface on (default = 8080)")
     opt[Int]('t', "tcp-port") action { (x, cc) =>
-      cc.copy(tcpPort = x) } text("port to run akka netty tcp on (default = 0, random assignment)")
+      cc.copy(tcpPort = x) } text("port to run akka netty tcp on (default = 2551)")
   }
   
   cliParser.parse(args, ClusterConfig()) match {
@@ -27,11 +28,14 @@ object SafeCluster extends App {
       
       val roles = if (web) List("manager", "worker") else List("worker")
       
-      val selfIp = java.net.InetAddress.getLocalHost().getHostAddress()
+      val selfIp = Try { java.net.InetAddress.getLocalHost().getHostAddress().trim() }
+      val selfIpStr =
+        if (selfIp.isSuccess) s"""akka.remote.netty.tcp.hostname="${selfIp.get}""""
+        else ""
         
       val config = ConfigFactory.parseString(
           s"""
-          akka.remote.netty.tcp.hostname="${selfIp}"
+          ${selfIpStr}
           akka.remote.netty.tcp.port=${tcpPort}
           akka.cluster.roles = [${roles.mkString(", ")}]
           """).withFallback(ConfigFactory.load())

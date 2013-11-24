@@ -13,7 +13,7 @@ case class FailedStatus(id: String, message: String) extends ExtractionStatus {
   def increment() = this
 }
 
-case class FinishedStatus(id: String, extractionTime: Long) extends ExtractionStatus {
+case class FinishedStatus(id: String, total: Int, extractionTime: Long) extends ExtractionStatus {
   def increment() = this
 }
 

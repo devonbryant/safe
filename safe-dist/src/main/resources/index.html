@@ -52,8 +52,37 @@
                 </div>
             </div>
 
+            <br/><br/>
             <div id="running"></div>
         </div>
+
+        <script id="status-template" type="text/x-handlebars-template">
+            <div class="row">
+                <div class="col-md-2" align="center">{{id}}</div>
+                <div class="col-md-10" id="{{id}}"></div>
+            </div>
+        </script>
+
+        <script id="progress-template" type="text/x-handlebars-template">
+            <div class="alert alert-info">
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: {{percentComplete}}%;"/>
+                </div>
+                Extracted features from {{completed}} of {{total}} files.
+            </div>
+        </script>
+
+        <script id="success-template" type="text/x-handlebars-template">
+            <div class="alert alert-success">
+                Extracted features from {{total}} files in {{extractionTime}} seconds.
+            </div>
+        </script>
+
+        <script id="failure-template" type="text/x-handlebars-template">
+            <div class="alert alert-danger">
+                {{message}}
+            </div>
+        </script>
 
         <script src="js/vendor/jquery-1.10.2.min.js"></script>
         <script src="js/vendor/handlebars-v1.1.2.js"></script>

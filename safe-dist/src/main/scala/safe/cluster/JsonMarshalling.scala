@@ -40,6 +40,7 @@ object JsonMarshalling extends DefaultJsonProtocol {
       JsObject(
             "type" -> JsString("FinishedStatus"),
             "id" -> JsString(fs.id),
+            "total" -> JsNumber(fs.total),
             "extractionTime" -> JsNumber(fs.extractionTime))
             
     def completedStatus(json: JsObject) = json.getFields("type", "id", "completed", "total", "numFeats") match {
@@ -54,9 +55,9 @@ object JsonMarshalling extends DefaultJsonProtocol {
       case _ => throw new DeserializationException("Expected a FailedStatus object")
     }
     
-    def finishedStatus(json: JsObject) = json.getFields("type", "id", "extractionTime") match {
-      case Seq(JsString("FinishedStatus"), JsString(id), JsNumber(time)) =>
-        FinishedStatus(id, time.toLong)
+    def finishedStatus(json: JsObject) = json.getFields("type", "id", "total", "extractionTime") match {
+      case Seq(JsString("FinishedStatus"), JsString(id), JsNumber(total), JsNumber(time)) =>
+        FinishedStatus(id, total.toInt, time.toLong)
       case _ => throw new DeserializationException("Expected a FinishedStatus object")
     }
   }

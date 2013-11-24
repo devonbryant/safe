@@ -86,7 +86,7 @@ object Safe extends App {
       
       if (plans.length > 0) {
         val metrics = if (conf.metrics) Some(new MetricRegistry()) else None
-        val planActor = system.actorOf(LocalExtractionActor.props(metrics), "extraction")
+        val planActor = system.actorOf(LocalExtractionActor.props(false, metrics), "extraction")
         val listener = system.actorOf(Props(classOf[FinishActor], plans.length, conf.metrics))
         
         plans.zipWithIndex foreach {

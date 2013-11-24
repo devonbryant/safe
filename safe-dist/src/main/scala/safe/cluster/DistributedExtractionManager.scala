@@ -66,7 +66,7 @@ class DistributedExtractionManager extends Actor with ActorLogging {
       for (WaitStatus(startTime, remaining, numFiles) <- waiting.get(id)) {
         if (remaining <= 1) {
           // We've finished, update the status
-          finished.put(id, FinishedStatus(id, System.currentTimeMillis - startTime))
+          finished.put(id, FinishedStatus(id, numFiles, System.currentTimeMillis - startTime))
           waiting.remove(id)
           
           // Clear the workers status

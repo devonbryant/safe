@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
 
-class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor with ActorLogging {
+class LocalExtractionActor(notifyInputFinish: Boolean, metrics: Option[MetricRegistry]) extends FeatureActor with ActorLogging {
   
   val metricsName = "Actor (" + self.path + ")"
   
@@ -25,7 +25,7 @@ class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor
       running -= 1
       sendBatch()
       
-      //planListeners.get(fi.id) foreach { _ ! fi }
+      if (notifyInputFinish) planListeners.get(fi.id) foreach { _ ! fi }
     }
     case FinishedExtraction(id) => {
       // TODO Send PoisonPill?
@@ -95,5 +95,6 @@ class LocalExtractionActor(metrics: Option[MetricRegistry]) extends FeatureActor
 }
 
 object LocalExtractionActor {
-  def props(metrics: Option[MetricRegistry] = None): Props = Props(classOf[LocalExtractionActor], metrics)
+  def props(notifyInputFinish: Boolean = false, metrics: Option[MetricRegistry] = None): Props = 
+    Props(classOf[LocalExtractionActor], notifyInputFinish, metrics)
 }
