@@ -74,12 +74,14 @@
 
         <script id="success-template" type="text/x-handlebars-template">
             <div class="alert alert-success">
+                <button type="button" class="close" onclick="$('#{{id}}').parent().remove();">&times;</button>
                 Extracted features from {{total}} files in {{extractionTime}} seconds.
             </div>
         </script>
 
         <script id="failure-template" type="text/x-handlebars-template">
             <div class="alert alert-danger">
+                <button type="button" class="close" onclick="$('#{{id}}').parent().remove();">&times;</button>
                 {{message}}
             </div>
         </script>
