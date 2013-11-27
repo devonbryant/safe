@@ -27,6 +27,7 @@ object TextFeatureWriter {
     val fmt = new java.text.DecimalFormat()
     fmt.setMaximumFractionDigits(n)
     fmt.setMinimumFractionDigits(n)
+    fmt.setGroupingUsed(false);
     Writeable.of[A, String] { a => fmt.format(a) }
   }
   
@@ -34,6 +35,7 @@ object TextFeatureWriter {
     val fmt = new java.text.DecimalFormat()
     fmt.setMaximumFractionDigits(n)
     fmt.setMinimumFractionDigits(n)
+    fmt.setGroupingUsed(false);
     Writeable.of[breeze.math.Complex, String] { a => 
       fmt.format(a.real) + " + " + fmt.format(a.imag) + "i"
     }
