@@ -1,12 +1,10 @@
 package safe.io
 
+import safe.audio.Audio
 import java.io.File
-import javax.sound.sampled.AudioSystem
 import scala.collection.mutable
 
 class LocalAudioFileIterator(path: String, recursive: Boolean = false) extends Iterator[String] {
-  
-  val supportedFormats = Set("aiff") ++ AudioSystem.getAudioFileTypes().map(_.getExtension()).toSet
   
   val pathFile = new File(path)
   val queue = new mutable.Queue[File]()
@@ -42,7 +40,7 @@ class LocalAudioFileIterator(path: String, recursive: Boolean = false) extends I
     if (idx == -1) false
     else {
       val extension = name.substring(idx + 1)
-      supportedFormats exists { _.equalsIgnoreCase(extension) }
+      Audio.supportedFormats exists { _.equalsIgnoreCase(extension) }
     }
   }
   

@@ -1,76 +1,62 @@
 package safe.actor
 
 import akka.actor.{ Actor, ActorRef, ActorLogging, Props }
-import akka.routing.BroadcastRouter
 import safe.feature._
 import safe.io.{ LocalAudioFileIterator, LocalFileAudioIn }
 import com.codahale.metrics.MetricRegistry
 import scala.collection.mutable
 import scala.util.{ Try, Success, Failure }
 
+/**
+ * An actor that runs bulk extraction on audio files from the local file system
+ */
 class LocalExtractionActor(notifyInputFinish: Boolean, metrics: Option[MetricRegistry]) extends FeatureActor with ActorLogging {
   
   val metricsName = "Actor (" + self.path + ")"
   
   val poolSize = context.system.settings.config.getInt("safe.router-pool-size")
-  val thresh = 2 * poolSize
-  var running = 0
   
-  val planActors = mutable.Map[String, ActorRef]() // Plan Id -> Extraction Actor
-  val planListeners = mutable.Map[String, ActorRef]() // Plan Id -> Finish Listener
-  val inputIterators = mutable.Map[String, Iterator[String]]() // Plan Id -> Input Itr
+  val createdActors = mutable.Map[String, Seq[ActorRef]]() // Plan Id -> All created actors
   
   def receive = {
-    case fi: FinishedInput => {
-      running -= 1
-      sendBatch()
-      
-      if (notifyInputFinish) planListeners.get(fi.id) foreach { _ ! fi }
-    }
     case FinishedExtraction(id) => {
-      // TODO Send PoisonPill?
-      planActors.remove(id)
-      inputIterators.remove(id)
-      planListeners.remove(id) foreach { _ ! FinishedExtraction(id) }
+      // Stop any actors that were created as part of the plan
+      createdActors.remove(id) map { _ foreach context.stop }
     }
     case RunExtraction(id, plan, finishListener, path, recur) => {
       val timeCtx = startTimer(metricsName, metrics)
       
       val fileItr = new LocalAudioFileIterator(path, recur)
       
-      // Waiting for n number of files and m features to finish
+      // Waiting for n number of files to finish
       val numFiles = fileItr.size()
-      val numFeats = FeatureExtraction.featureCount(plan)
       
       // Create an actor to wait for each feature to finish and let us 
       // know when the plan has finished
       val planFinishActor = context.actorOf(
-          AggregateActor.props(new PlanFinishAggregator(numFiles, numFeats), Seq(self)))
-      
-      // Create an actor to let us know when a given input/file has finished
-      // so we can throttle the file input rate
-      val inputFinishActor = context.actorOf(
-          AggregateActor.props(new InputFinishAggregator(numFeats), Seq(self)))
-      
-      val featListeners = List(inputFinishActor, planFinishActor)
-      val featFinishListener = context.actorOf(Props.empty.withRouter(BroadcastRouter(featListeners)))
-      
+          AggregateActor.props(new PlanFinishAggregator(numFiles), Seq(self, finishListener)))
+          
+      val finishListeners = if (notifyInputFinish) Seq(planFinishActor, finishListener) else Seq(planFinishActor)
       
       // Create the actor tree for the plan
       implicit val mtx = metrics
-      FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, Seq(featFinishListener), poolSize) match {
+      FeatureActor.actorTree(plan, FeatureActor.defaultActorCreators, finishListeners, poolSize) match {
         case Success(actTree) => {
-           planActors.put(id, actTree)
-           planListeners.put(id, finishListener)
-           inputIterators.put(id, fileItr)
+           finishListener ! RunningExtraction(id, numFiles)
            
-           finishListener ! RunningExtraction(id, numFiles, numFeats)
+           // TODO Probably need to stop all actors in the tree, not just the root
+           createdActors.put(id, Seq(actTree, planFinishActor))
            
-           sendBatch()
+           fileItr foreach { file =>
+             actTree ! ExtractInput(id, new LocalFileAudioIn(file))
+           }
         }
         case Failure(exc) => {
           log.error("Unable to create actor tree for plan (" + id + ") " + plan, exc)
           finishListener ! ExtractionFailed(id, "Unable to create actor tree for plan " + plan + ", " + exc.getMessage())
+          
+          // Kill any created actors
+          context.stop(planFinishActor)
         }
       }
       
@@ -78,20 +64,6 @@ class LocalExtractionActor(notifyInputFinish: Boolean, metrics: Option[MetricReg
     }
   }
   
-  // Send the next batch of input files
-  def sendBatch() = {
-    
-    def canSend() = (running < thresh) && inputIterators.exists(_._2.hasNext)
-    
-    while(canSend()) {
-      for {
-        (id, itr) <- inputIterators.find(_._2.hasNext)
-        act <- planActors.get(id)
-      } act ! (id, new LocalFileAudioIn(itr.next))
-      
-      running += 1
-    }
-  }
 }
 
 object LocalExtractionActor {

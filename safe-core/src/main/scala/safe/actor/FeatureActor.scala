@@ -1,7 +1,7 @@
 package safe.actor
 
 import akka.actor.{ Actor, ActorContext, ActorRef, ActorSelection, ActorSystem, Props }
-import akka.routing.{ BroadcastRouter, RoundRobinRouter, Listeners }
+import akka.routing.{ Listeners, Listen }
 import breeze.math.Complex
 import safe.SafeVector
 import safe.dsp
@@ -55,6 +55,15 @@ object FeatureActor {
                 finishListeners: Seq[ActorRef] = Nil, 
                 poolSize: Int = 1)(implicit context: ActorContext, metrics: Option[MetricRegistry]): Try[ActorRef] = {
 
+    // Create an input throttle
+    val throttle = 2 * poolSize
+    val throttleActor = context.actorOf(InputThrottleActor.props(throttle))
+    
+    // Create an aggregate for input finish messages
+    val inputFinishAgg = Seq(context.actorOf(
+          AggregateActor.props(new InputFinishAggregator(FeatureExtraction.featureCount(plan)), 
+                               finishListeners :+ throttleActor)))
+          
     def featAct(feat: Feature, listeners: Seq[ActorRef], poolSize: Int): Try[ActorRef] = 
       if (actorCreation.contains(feat.getClass)) {
         actorCreation(feat.getClass).create(feat, listeners, poolSize) match {
@@ -65,7 +74,7 @@ object FeatureActor {
       else Failure(new RuntimeException("No FeatureActorCreation provided for type " + feat.getClass))
     
     def tree(p: Plan): Try[ActorRef] = p match {
-      case Plan(feat, Nil) => featAct(feat, finishListeners, poolSize)
+      case Plan(feat, Nil) => featAct(feat, inputFinishAgg, poolSize)
       case Plan(feat, nextFeats) => {
         val nextActs = nextFeats map { p => tree(p) }
         nextActs.find(_.isFailure) match {
@@ -75,7 +84,13 @@ object FeatureActor {
       }
     }
 
-    tree(plan)
+    tree(plan) match {
+      case Success(planAct) => {
+        throttleActor ! Listen(planAct) // Register plan actor w/ throttler
+        Success(throttleActor)
+      }
+      case fail => fail // TODO clean up any created actors
+    }
   }
   
   /**
@@ -117,7 +132,7 @@ object FeatureActor {
   val inputActorCreation = new FeatureActorCreation {
     val name = "in"
       
-    val inputF = identity[(String, AudioIn)] _
+    val inputF = identity[ExtractInput] _
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
                                                                            metrics: Option[MetricRegistry]) = {
       feat match {
@@ -133,9 +148,9 @@ object FeatureActor {
   val frameActorCreation = new FeatureActorCreation {
     val name = "frame"
       
-    def frameF(frameSize: Int, stepSize: Int) = (in: (String, AudioIn)) => {
-      val planId = in._1
-      val audioIn = in._2
+    def frameF(frameSize: Int, stepSize: Int) = (in: ExtractInput) => {
+      val planId = in.id
+      val audioIn = in.input
       val audioStream = AudioSystem.getAudioInputStream(audioIn.stream)
       val inputName = audioIn.name
       val frameItr = AudioStreamIterator(audioStream, frameSize, stepSize)

@@ -27,8 +27,7 @@ object JsonMarshalling extends DefaultJsonProtocol {
             "type" -> JsString("CompletedStatus"),
             "id" -> JsString(cs.id),
             "completed" -> JsNumber(cs.completed),
-            "total" -> JsNumber(cs.total),
-            "numFeats" -> JsNumber(cs.numFeats))
+            "total" -> JsNumber(cs.total))
             
     def toJson(fs: FailedStatus) = 
       JsObject(
@@ -43,9 +42,9 @@ object JsonMarshalling extends DefaultJsonProtocol {
             "total" -> JsNumber(fs.total),
             "extractionTime" -> JsNumber(fs.extractionTime))
             
-    def completedStatus(json: JsObject) = json.getFields("type", "id", "completed", "total", "numFeats") match {
-      case Seq(JsString("CompletedStatus"), JsString(id), JsNumber(comp), JsNumber(tot), JsNumber(feats)) =>
-        CompletedStatus(id, comp.toInt, tot.toInt, feats.toInt)
+    def completedStatus(json: JsObject) = json.getFields("type", "id", "completed", "total") match {
+      case Seq(JsString("CompletedStatus"), JsString(id), JsNumber(comp), JsNumber(tot)) =>
+        CompletedStatus(id, comp.toInt, tot.toInt)
       case _ => throw new DeserializationException("Expected a CompletedStatus object")
     }
     

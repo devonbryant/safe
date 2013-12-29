@@ -40,18 +40,20 @@ case class RunExtraction(id: String,
                          plan: Plan, 
                          listener: ActorRef, 
                          path: String, 
-                         recursive: Boolean = false)
-                    
+                         recursive: Boolean = false)                   
 
+
+case class ExtractInput(id: String, input: safe.io.AudioIn)
+                         
+                         
 sealed trait ExtractionStatus
 
 /**
  * Message indicating extraction has started
  * @param id the plan id
  * @param fileCount the number of files extraction will run on
- * @param featCount the number of features being extracted per file
  */
-case class RunningExtraction(id: String, fileCount: Int, featCount: Int) extends ExtractionStatus
+case class RunningExtraction(id: String, fileCount: Int) extends ExtractionStatus
 
 /**
  * Message indicating that extraction has failed

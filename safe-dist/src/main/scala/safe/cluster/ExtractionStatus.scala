@@ -5,8 +5,8 @@ sealed trait ExtractionStatus {
   def increment(): ExtractionStatus
 }
 
-case class CompletedStatus(id: String, completed: Int, total: Int, numFeats: Int) extends ExtractionStatus {
-  def increment() = CompletedStatus(id, completed + 1, total, numFeats)
+case class CompletedStatus(id: String, completed: Int, total: Int) extends ExtractionStatus {
+  def increment() = CompletedStatus(id, completed + 1, total)
 }
 
 case class FailedStatus(id: String, message: String) extends ExtractionStatus {

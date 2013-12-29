@@ -125,8 +125,8 @@ class FinishActor(numPlans: Int, printMetrics: Boolean = false) extends Actor {
       Console.err.print("Error: " + msg)
       context.system.shutdown()
     }
-    case RunningExtraction(id, numFiles, numFeats) => if (printMetrics) {
-      Console.println("Extracting " + numFeats + " features from " + numFiles + " files.")
+    case RunningExtraction(id, numFiles) => if (printMetrics) {
+      Console.println("Extracting features from " + numFiles + " files.")
     }
     case _ => // don't care
   }

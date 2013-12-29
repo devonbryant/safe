@@ -2,15 +2,14 @@ package safe.actor
 
 import scala.collection.mutable
 
-class PlanFinishAggregator(numFiles: Int, numFeats: Int) extends Aggregator[FinishedFeature, FinishedExtraction] {
+class PlanFinishAggregator(numFiles: Int) extends Aggregator[FinishedInput, FinishedExtraction] {
   
-  val count = numFiles * numFeats
   var finishCount = 0
   
-  def add(ff: FinishedFeature) = {
+  def add(fin: FinishedInput) = {
     finishCount += 1
     
-    if (finishCount >= count) Some(FinishedExtraction(ff.id))
+    if (finishCount >= numFiles) Some(FinishedExtraction(fin.id))
     else None
   }
   
