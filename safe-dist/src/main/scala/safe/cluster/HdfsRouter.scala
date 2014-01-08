@@ -33,12 +33,16 @@ class HdfsRouter(routees: immutable.Seq[ActorRef], fs: FileSystem) {
       val fileStat = fs.getFileStatus(new Path(msg.file))
       val hdfsLocs = fs.getFileBlockLocations(fileStat, 0, fileStat.getLen())
       
+      // Get the hostnames and ip addresses (minus ports) of machines hosting the file
+      val hostsAndIps = hdfsLocs flatMap { loc => 
+        loc.getHosts() ++ loc.getNames().map(s => s.substring(0, s.indexOf(":")))  
+      }
+      
       // Try to find the actors that are running on the same node
-      // as the hdfs file blocks...this way file i/o should be local
+      // as the hdfs file blocks...this way file i/o can be local
       val possibleRoutees = for {
-        hdfsLoc <- hdfsLocs
-        (hdfsHost, hdfsIp) <- (hdfsLoc.getHosts() zip hdfsLoc.getNames()).toSeq
-        rts <- routeesByIp.get(Option(hdfsHost)).orElse(routeesByIp.get(Option(hdfsIp))).toSeq
+        hostOrIp <- hostsAndIps
+        rts <- routeesByIp.get(Option(hostOrIp)).toSeq
         rt <- rts
       } yield (rt)
       
