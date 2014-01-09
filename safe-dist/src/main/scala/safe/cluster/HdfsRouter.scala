@@ -3,6 +3,7 @@ package safe.cluster
 import akka.actor.ActorRef
 import org.apache.hadoop.fs.{ Path, FileSystem }
 import scala.collection.immutable
+import scala.collection.mutable
 import scala.util.Try
 import scala.util.Random
 
@@ -27,6 +28,25 @@ class HdfsRouter(routees: immutable.Seq[ActorRef], fs: FileSystem) {
     else ipmap
   }
   
+  val routeeCounts = routees.foldLeft(mutable.Map[Option[ActorRef], Long]()) { (m, a) =>
+    m.put(Some(a), 0)
+    m
+  }
+  
+  // Test if an actor is overloaded (e.g. it has the most messages by 3 or more)
+  def overloaded(act: Option[ActorRef]) = {
+    val count = routeeCounts.get(act)
+    if (count.isDefined) {
+      routeeCounts.forall(a => a._2 + 2 < count.get || a._1 == act)
+    }
+    else false
+  }
+  
+  // Find an actor who has received the least amount of messages
+  def lowestCount(): Option[ActorRef] = routeeCounts.foldLeft[(Option[ActorRef], Long)](None, Long.MaxValue) { 
+    (curr, next) => if (next._2 < curr._2) next else curr
+  }._1
+  
   def send(msg: RunFileExtraction): Unit = {
     val path = new Path(msg.file)
     val routee = if (fs.exists(path)) {
@@ -49,7 +69,9 @@ class HdfsRouter(routees: immutable.Seq[ActorRef], fs: FileSystem) {
       if (possibleRoutees.isEmpty) nextRR()
       else {
         // We found multiple actors, pick one at random
-        possibleRoutees(Random.nextInt(possibleRoutees.length))
+        val possibleRt = possibleRoutees(Random.nextInt(possibleRoutees.length))
+        if (overloaded(Some(possibleRt))) lowestCount().getOrElse(nextRR())
+        else possibleRt
       }
     }
     else nextRR()
