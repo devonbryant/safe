@@ -3,6 +3,7 @@ package safe.cluster
 import akka.actor.{ Actor, ActorRef, ActorLogging, Props }
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
+import akka.routing.{ ActorRefRoutee, Broadcast, Router, RoundRobinRoutingLogic }
 import safe.actor.{ FinishedExtraction, RunningExtraction, FinishedInput, AggregateActor, PlanFinishAggregator }
 import safe.feature._
 import scala.concurrent.Future
@@ -34,8 +35,9 @@ class DistributedExtractionManager extends Actor with ActorLogging {
         case Success(plans) => {
           if (inDir.startsWith("hdfs") && !plans.isEmpty) {
             // HDFS, so we need to coordinate the work to each worker
-            val routees = workers.toIndexedSeq
-            val hdfsRouter = new HdfsRouter(routees, hdfsFS)
+            val routees = workers.toIndexedSeq map { ActorRefRoutee(_) }
+            
+            val hdfsRouter = Router(RoundRobinRoutingLogic(), routees)
             val hdfsFileItr = new HdfsAudioFileIterator(inDir, hdfsFS, recur)
             
             val numFiles = hdfsFileItr.size
@@ -44,14 +46,13 @@ class DistributedExtractionManager extends Actor with ActorLogging {
             status.put(id, CompletedStatus(id, 0, numFiles))
             
             // Add the plans to the workers
-            for {
-              plan <- plans
-              routee <- routees
-            } routee ! AddPlan(id, plan, self)
+            plans foreach { plan =>
+              hdfsRouter.route(Broadcast(AddPlan(id, plan, self)), self)  
+            }
             
             // Route the files to workers for extraction
             hdfsFileItr foreach { file =>
-              hdfsRouter.send(RunFileExtraction(id, file))
+              hdfsRouter.route(RunFileExtraction(id, file), self)
             }
           }
           else {
