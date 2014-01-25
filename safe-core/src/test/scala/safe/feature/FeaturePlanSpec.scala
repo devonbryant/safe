@@ -61,9 +61,9 @@ class FeaturePlanSpec extends FlatSpec
   }
   
   it should "create new plans if none overlap" in {
-    FeatureExtraction.plans(List(A, B)) should equal (List(pb, pa))
-    FeatureExtraction.plans(List(AB, BC)) should equal (List(pbc, pab))
-    FeatureExtraction.plans(List(ABC, BCD)) should equal (List(pbcd, pabc))
+    FeatureExtraction.plans(List(A, B)) should equal (List(pa, pb))
+    FeatureExtraction.plans(List(AB, BC)) should equal (List(pab, pbc))
+    FeatureExtraction.plans(List(ABC, BCD)) should equal (List(pabc, pbcd))
   }
 }
 
