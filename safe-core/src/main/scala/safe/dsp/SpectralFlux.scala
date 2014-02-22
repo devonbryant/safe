@@ -7,9 +7,9 @@ import Numeric.Implicits._
 
 /**
  * Spectral Flux algorithm based on:
- *   1. "Computer Modeling of Sound for Transformation and Synthesis of Musical Signals"
- *      P. Masri
- *      PhD thesis, University of Bristol, UK, 1996
+ *   1. "Onset Detection Revisited"
+ *      S. Dixon
+ *      Proceedings of the 9th International Conference on Digital Audio Effects, 2006
  */
 object SpectralFlux {
   
