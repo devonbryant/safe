@@ -34,16 +34,17 @@ class FeatureParser(sampleFreq: Float = Defaults.sampleRate,
   //
   // General parsers for feature names/parameters
   //
+  def id: Parser[String] = """[a-zA-Z0-9]+""".r
   def strLit = (stringLiteral | ("'"+"""([^"\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*"""+"'").r) ^^ {
     s => s.slice(1, s.length - 1)
   }
   def value = decimalNumber | strLit
-  def param = ident ~ "=" ~ value ^^ {
+  def param = id ~ "=" ~ value ^^ {
     case n ~ _ ~ v => (n, v)
   }
   def params = repsep(param, ",") ^^ { _.toMap }
   
-  def feature = ident ~ ":" ~ ident ~ params ~ "-out".? ~ params ^^ {
+  def feature = id ~ ":" ~ id ~ params ~ "-out".? ~ params ^^ {
     case name ~ _ ~ feat ~ featParams ~ _ ~ outParams => {
       featureOut(name, feats(feat)(featParams), outParams)
     }
