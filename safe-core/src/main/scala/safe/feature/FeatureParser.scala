@@ -77,8 +77,8 @@ class FeatureParser(sampleFreq: Float = Defaults.sampleRate,
       windowType <- param("windowType", params, identity, Defaults.windowType);
       numCoeffs <- param("numCoeffs", params, toInt, 13);
       melFilters <- param("melFilters", params, toInt, 40);
-      freqMin <- param("freqMin", params, toFloat, 130.0f);
-      freqMax <- param("freqMax", params, toFloat, 6854.0f)
+      freqMin <- param("minFreq", params, toFloat, 130.0f);
+      freqMax <- param("maxFreq", params, toFloat, 6854.0f)
     } yield MFCC(sampleRate, frameSize, stepSize, windowType, numCoeffs, melFilters, freqMin, freqMax)
   }
   
