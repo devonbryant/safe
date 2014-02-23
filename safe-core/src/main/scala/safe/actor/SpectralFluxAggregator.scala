@@ -6,8 +6,6 @@ import scala.collection.mutable
 
 class SpectralFluxAggregator(diffLen: Int) extends Aggregator[RealFeatureFrame, RealFeatureFrame] {
   
-  private[this] val offset = diffLen - 1
-  
   // Cache for partially computed flux
   private[this] val fluxCache = new mutable.HashMap[String, TempFlux]
   
@@ -22,14 +20,14 @@ class SpectralFluxAggregator(diffLen: Int) extends Aggregator[RealFeatureFrame, 
     val idx = frame.index
     
     val cache = queued.getOrElseUpdate(name, new mutable.HashMap[Int, SafeVector[Double]])
-    val tempFlux = fluxCache.getOrElseUpdate(name, TempFlux(new Array[Double](frame.total - offset)))
+    val tempFlux = fluxCache.getOrElseUpdate(name, TempFlux(new Array[Double](frame.total - diffLen)))
     val counts = counted.getOrElseUpdate(name, new mutable.HashMap[Int, Int])
     
     cache.put(idx, frame.data)
     counts.put(idx, 0)
     
-    compareAndUpdate(idx - offset, idx, cache, counts, tempFlux)
-    compareAndUpdate(idx, idx + offset, cache, counts, tempFlux)
+    compareAndUpdate(idx - diffLen, idx, cache, counts, tempFlux)
+    compareAndUpdate(idx, idx + diffLen, cache, counts, tempFlux)
     
     if (tempFlux.full) {
       // Clean up temporary storage

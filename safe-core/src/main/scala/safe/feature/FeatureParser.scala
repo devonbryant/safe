@@ -109,7 +109,7 @@ class FeatureParser(sampleFreq: Float = Defaults.sampleRate,
       frameSize <- param("frameSize", params, toInt, Defaults.frameSize);
       stepSize <- param("stepSize", params, toInt, Defaults.stepSize);
       windowType <- param("windowType", params, identity, Defaults.windowType);
-      diffLength <- param("diffLength", params, toInt, 2)
+      diffLength <- param("diffLength", params, toInt, 1)
     } yield SpectralFlux(sampleRate, frameSize, stepSize, windowType, diffLength)
   }
   

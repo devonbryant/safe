@@ -231,7 +231,7 @@ case class SpectralFlux(sampleRate: Float,
                         frameSize: Int = Defaults.frameSize,
                         stepSize: Int = Defaults.stepSize,
                         windowType: String = Defaults.windowType,
-                        diffLength: Int = 2) extends Feature {
+                        diffLength: Int = 1) extends Feature {
   lazy val dataflow = Dataflow(
     List[Feature](Input(sampleRate),
       Frame(sampleRate, frameSize, stepSize),
@@ -271,11 +271,11 @@ case class SpectralOnsets(sampleRate: Float,
   val diffLen = safe.dsp.SpectralOnsetDetection.frameDiff(
     stepSize,
     safe.dsp.Window.window(windowType, frameSize),
-    actThresh) + 1
+    actThresh)
 
   // Since we're starting at 0, pad the beginning as if 
   // we had started at step_size - window_length
-  val padding = diffLen + math.floor(frameSize.toDouble / stepSize).toInt - 1
+  val padding = diffLen + math.floor(frameSize.toDouble / stepSize).toInt
 
   lazy val dataflow = Dataflow(
     List[Feature](Input(sampleRate),

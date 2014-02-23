@@ -31,7 +31,7 @@ object SpectralFlux {
    * are expected to be in the magnitude spectrum
    */
   def specFlux[A:ClassTag:Numeric:Ordering](frames: Iterator[SafeVector[A]], diffLen: Int): SafeVector[A] = {
-    val actsItr = frames.sliding(diffLen, 1) map { frames =>
+    val actsItr = frames.sliding(diffLen + 1, 1) map { frames =>
       SpectralFlux.diff(frames.head, frames.last)
     }
     SafeVector(actsItr.toArray)
