@@ -47,8 +47,8 @@ object SpectralOnsetDetection {
   def activations(filtFrames: Iterator[SafeVector[Double]], 
                   stepSize: Int, 
                   window: SafeVector[Double], 
-                  thresh: Double = 0.22) = {
-    val diffLen = frameDiff(stepSize, window, thresh) + 1
+                  ratio: Double = 0.22) = {
+    val diffLen = frameDiff(stepSize, window, ratio) + 1
     val specFlux = SpectralFlux.specFlux(filtFrames, diffLen)
 
     // Since we're starting at 0, pad the beginning as if 
@@ -71,10 +71,10 @@ object SpectralOnsetDetection {
    * the spectral flux
    * @param stepSize the step size used for frames being passed to the function
    * @param window the Window (e.g. hann, hamming, etc.) that was used on the frames
-   * @param the threshold for detection (default = 0.22)
+   * @param the magnitude ratio for detection (default = 0.22)
    */
-  def frameDiff(stepSize: Int, window: SafeVector[Double], thresh: Double = 0.22) = {
-    val idx = window indexOf { _ > thresh }
+  def frameDiff(stepSize: Int, window: SafeVector[Double], ratio: Double = 0.22) = {
+    val idx = window indexOf { _ > ratio }
     val sampleDiff = window.length / 2 - idx
     val frameDiff = if (stepSize > 0) round(sampleDiff.toDouble / stepSize).toInt else 1
     if (frameDiff > 1) frameDiff else 1

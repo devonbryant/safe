@@ -119,8 +119,9 @@ class FeatureParser(sampleFreq: Float = Defaults.sampleRate,
       frameSize <- param("frameSize", params, toInt, Defaults.frameSize);
       stepSize <- param("stepSize", params, toInt, Defaults.stepSize);
       windowType <- param("windowType", params, identity, Defaults.windowType);
-      thresh <- param("threshold", params, toDoub, 0.22)
-    } yield SpectralOnsets(sampleRate, frameSize, stepSize, windowType, thresh)
+      ratio <- param("ratio", params, toDoub, 0.22);
+      thresh <- param("threshold", params, toDoub, 2.5)
+    } yield SpectralOnsets(sampleRate, frameSize, stepSize, windowType, ratio, thresh)
   }
   
   //

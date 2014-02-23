@@ -354,8 +354,8 @@ object FeatureActor {
     def create(feat: Feature, listeners: Seq[ActorRef], poolSize: Int = 1)(implicit context: ActorContext,
                                                                            metrics: Option[MetricRegistry]) = {
       feat match {
-        case SpectralOnsets(sr, _, step, _, _) =>
-          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsets(sr, step)), listeners, metrics), 
+        case SpectralOnsets(sr, _, step, _, _, thr) =>
+          Some(pool(TransformActor.props(liftDD(dsp.SpectralOnsetDetection.onsets(sr, step, thr)), listeners, metrics), 
                     poolSize, 
                     uniqueName))
         case _ => None

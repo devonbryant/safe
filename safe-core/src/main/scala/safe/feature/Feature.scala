@@ -266,12 +266,13 @@ case class SpectralOnsets(sampleRate: Float,
                           frameSize: Int = Defaults.frameSize,
                           stepSize: Int = Defaults.stepSize,
                           windowType: String = Defaults.windowType,
-                          actThresh: Double = 0.22) extends Feature {
+                          actRatio: Double = 0.22,
+                          actThresh: Double = 2.5) extends Feature {
 
   val diffLen = safe.dsp.SpectralOnsetDetection.frameDiff(
     stepSize,
     safe.dsp.Window.window(windowType, frameSize),
-    actThresh)
+    actRatio)
 
   // Since we're starting at 0, pad the beginning as if 
   // we had started at step_size - window_length
