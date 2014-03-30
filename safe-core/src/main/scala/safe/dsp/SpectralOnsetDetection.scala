@@ -1,10 +1,9 @@
 package safe.dsp
 
-import breeze.generic.UFunc
+import breeze.generic._
 import breeze.linalg._
 import safe.SafeVector
 import safe.audio.MIDI
-import scala.math._
 import scala.collection.mutable
 
 /**
@@ -14,6 +13,12 @@ import scala.collection.mutable
  *      Proceedings of the 15th International Conference on Digital Audio Effects (DAFx-12)
  */
 object SpectralOnsetDetection {
+  
+  private object log10MultAdd extends UFunc with MappingUFunc {
+    implicit object safe10MultAddDouble extends Impl[Double, Double] {
+      def apply(x: Double) = math.log10(x + 1.0)
+    }
+  }
   
   /**
    * Get a function to calculate the note onsets (in seconds) 
@@ -25,9 +30,9 @@ object SpectralOnsetDetection {
              preAvg: Int = 100, 
              preMax: Int = 30,
              millisPerOnset: Int = 30): SafeVector[Double] => SafeVector[Double] = {
-    val fps = ceil(sampleFreq / stepSize).toInt
+    val fps = math.ceil(sampleFreq / stepSize).toInt
     
-    def toFrame(a: Int) = round((fps * a) / 1000.0).toInt
+    def toFrame(a: Int) = math.round((fps * a) / 1000.0).toInt
     
     val preAvgFr = toFrame(preAvg)
     val preMaxFr = toFrame(preMax)
@@ -53,7 +58,7 @@ object SpectralOnsetDetection {
 
     // Since we're starting at 0, pad the beginning as if 
     // we had started at step_size - window_length
-    val padding = floor(window.length.toDouble / stepSize).toInt
+    val padding = math.floor(window.length.toDouble / stepSize).toInt
     SafeVector.zeros[Double](diffLen + padding - 1) ++ specFlux
   }
   
@@ -76,14 +81,14 @@ object SpectralOnsetDetection {
   def frameDiff(stepSize: Int, window: SafeVector[Double], ratio: Double = 0.22) = {
     val idx = window indexOf { _ > ratio }
     val sampleDiff = window.length / 2 - idx
-    val frameDiff = if (stepSize > 0) round(sampleDiff.toDouble / stepSize).toInt else 1
+    val frameDiff = if (stepSize > 0) math.round(sampleDiff.toDouble / stepSize).toInt else 1
     if (frameDiff > 1) frameDiff else 1
   }
   
   private[this] def onsetsFunc(preAvgFr: Int, preMaxFr: Int, thresh: Double, fps: Int, comb: Double)(activations: SafeVector[Double]) = {
     // Find the moving max and moving avg
-    val movMax = Filter.movingMax(activations, preMaxFr + 1, floor((preMaxFr) / 2.0).toInt)
-    val movAvg = Filter.movingAvg(activations, preAvgFr + 1, floor((preAvgFr) / 2.0).toInt)
+    val movMax = Filter.movingMax(activations, preMaxFr + 1, math.floor((preMaxFr) / 2.0).toInt)
+    val movAvg = Filter.movingAvg(activations, preAvgFr + 1, math.floor((preAvgFr) / 2.0).toInt)
     
     // Detected onsets are = to the moving max and >= the moving avg + threshold
     val detections = SafeVector.zipWith(activations, movMax, movAvg) { (act, max, avg) =>
@@ -115,7 +120,6 @@ object SpectralOnsetDetection {
         
     val filtSpec = (filt * DenseVector(data.toArray)).toDenseVector
     
-    val log10MultAdd = UFunc { (x: Double) => log10(x + 1.0) }
     log10MultAdd.inPlace(filtSpec)
     
     SafeVector(filtSpec.data)
@@ -139,7 +143,7 @@ object SpectralOnsetDetection {
     // Spectrogram bins
     val fac = (sampleFreq / 2.0) / fftCoeffs
     val freqBins = freqStream.map(freq => 
-      round(freq / fac).toInt
+      math.round(freq / fac).toInt
     ).distinct.takeWhile { _ < fftCoeffs }
     
     val nBands = freqBins.length - 2

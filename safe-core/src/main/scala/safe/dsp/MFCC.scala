@@ -1,9 +1,9 @@
 package safe.dsp
 
-import breeze.generic.UFunc
 import breeze.linalg._
+import breeze.generic._
 import safe.SafeVector
-import scala.math._
+
   
 /**
  * Functions for calculating the Mel-Frequency Cepstral Coefficients from
@@ -14,6 +14,20 @@ import scala.math._
  *      IEEE Transactions on Acoustics, Speech and Signal Processing, 28 :357-366, 1980
  */
 object MFCC {
+  
+  /** Convert mel (m) to frequency (hz) */
+  private object mel2hz extends UFunc with MappingUFunc {
+    implicit object mel2hzDouble extends Impl[Double, Double] {
+      def apply(m: Double) = 700.0 * (math.exp(m/1127.0) - 1.0)
+    }
+  }
+  
+  /** Only apply log to values > 0 */
+  private object safeLog extends UFunc with MappingUFunc {
+    implicit object safeLogDouble extends Impl[Double, Double] {
+      def apply(a: Double) = if (a > 0.0) math.log(a) else 0.0
+    }
+  }
   
   def mfcc(sampleFreq: Float,
 		   frameSize: Int,
@@ -32,20 +46,19 @@ object MFCC {
   def melFilter(size: Int, sampleRate: Float, melFilters: Int, freqMin: Float, freqMax: Float) = {
     val melFreqMin = hz2mel(freqMin)
     val melFreqMax = hz2mel(freqMax)
-
+    
     val binFreqs = linspace(melFreqMin, melFreqMax, melFilters + 2)
-    UFunc(mel2hz _).inPlace(binFreqs)
-
+    mel2hz.inPlace(binFreqs)
+    
     val melFilterMtx = DenseMatrix.zeros[Double](melFilters, size)
-
+    
     val fftFreqs = linspace(0.0, sampleRate/2.0, size)
-    for (i <- 0 until melFilters) {
-      val ffmin = binFreqs(i)
-      val ffmid = binFreqs(i + 1)
-      val ffmax = binFreqs(i + 2)
-      val norm = 2.0 / (ffmax - ffmin)
-      melFilterMtx(i,::) := (fftFreqs map { freq => coeff(ffmin, ffmid, ffmax, freq, norm) })
-    }
+    for {
+      i <- 0 until melFilters
+      (ffmin, ffmid, ffmax) = (binFreqs(i), binFreqs(i + 1), binFreqs(i + 2))
+      norm = 2.0 / (ffmax - ffmin)
+      j <- 0 until size
+    } melFilterMtx(i, j) = coeff(ffmin, ffmid, ffmax, fftFreqs(j), norm)
       
     melFilterMtx
   }
@@ -54,13 +67,13 @@ object MFCC {
   def dctMatrix(numCoeffs: Int, melFilters: Int) = {
     val dctMtx = DenseMatrix.zeros[Double](numCoeffs, melFilters)
       
-    dctMtx(0,::) := 1.0/sqrt(melFilters)
+    dctMtx(0,::) := 1.0/math.sqrt(melFilters)
       
-    val scale = sqrt(2.0/melFilters)
+    val scale = math.sqrt(2.0/melFilters)
     for {
       i <- 1 until numCoeffs;
       j <- 0 until melFilters 
-    } dctMtx(i, j) = scale * cos(Pi * (j + 0.5) * i / melFilters)
+    } dctMtx(i, j) = scale * math.cos(math.Pi * (j + 0.5) * i / melFilters)
 
     dctMtx
   }
@@ -79,13 +92,8 @@ object MFCC {
     SafeVector(melCeps.data)
   }
   
-  private[this] lazy val safeLog = UFunc{ (a: Double) => if (a > 0.0) log(a) else 0.0 }
-  
   /** Convert frequency (hz) to mel (m) */
-  private[this] def hz2mel(hz: Double) = 1127.0 * log(1.0 + hz/700.0)
-  
-  /** Convert mel (m) to frequency (hz) */
-  private[this] def mel2hz(m: Double) = 700.0 * (exp(m/1127.0) - 1.0)
+  private[this] def hz2mel(hz: Double) = 1127.0 * math.log(1.0 + hz/700.0)
   
   private[this] def coeff(min: Double, mid: Double, max: Double, value: Double, norm: Double) = 
     if (value < min || value > max) 0.0

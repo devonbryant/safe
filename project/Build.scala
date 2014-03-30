@@ -4,7 +4,7 @@ import com.typesafe.sbt.SbtStartScript
 
 object SafeBuild extends Build {
   val commonSettings = Seq(
-    version := "0.1-SNAPSHOT",
+    version := "0.2-SNAPSHOT",
 
     scalaVersion := "2.10.3",
 
@@ -14,8 +14,8 @@ object SafeBuild extends Build {
       "Sonatype Snapshots"  at "https://oss.sonatype.org/content/repositories/snapshots/"),
 
     libraryDependencies ++= Seq(
-      "org.scalatest"  % "scalatest_2.10" % "2.0"  % "test",
-      "org.scalacheck" %% "scalacheck"    % "1.10.0" % "test"
+      "org.scalatest"  % "scalatest_2.10" % "2.1.0"  % "test",
+      "org.scalacheck" %% "scalacheck"    % "1.11.3" % "test"
     )
   )
 
