@@ -39,7 +39,7 @@ object Safe extends App {
   
   // CLI args parser
   val cliParser = new scopt.OptionParser[SafeConfig]("safe") {
-    head("safe - Scalable Audio Feature Extraction", "0.1")
+    head("safe - Scalable Audio Feature Extraction", "0.2")
     opt[String]('i', "input") required() valueName("<file>") action { (x, sc) =>
       sc.copy(in = x) } text("input path (file or directory) for audio file(s) to process")
     opt[Unit]('r', "recursive") action { (_, sc) =>
