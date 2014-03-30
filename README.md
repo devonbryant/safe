@@ -1,7 +1,7 @@
 Safe
 ====
 
-Safe is a system for scalable and efficient audio feature extraction.  For a more detailed description of the system and the motivation behind it, see [my thesis](http://devonbryant.github.io/thesis/final/safe.pdf).
+Safe is a system for scalable and efficient audio feature extraction.  Safe is primarily useful for running bulk extraction on large sets of audio data.  The [Performance](http://github.com/devonbryant/safe/wiki/Performance) page shows how Safe compares with other audio feature extraction libraries. For a more detailed description of the system and the motivation behind it, see the [Scalable Audio Feature Extraction](http://devonbryant.github.io/thesis/final/safe.pdf) thesis paper.
 
 Running
 -------
