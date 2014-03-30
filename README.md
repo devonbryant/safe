@@ -54,59 +54,9 @@ The following example will extract the Mel-Frequency Cepstral Coefficients from 
 safe-core/target/run -i "/home/safe/music/song.wav" -f "mfcc: MFCC" -o "/home/safe/out"
 ```
 
+See [Existing Features](http://github.com/devonbryant/safe/wiki/Existing-Features) for a full description of the current feature extraction algorithms and parameters.
+
 Safe currently only works with PCM-encoded audio files (WAV, AIFF, etc.).  Future versions will support more encodings such as MP3, OGG, etc.
-
-Features
---------
-
-Safe currently provides the following feature extraction algorithms and parameters:
-
- 1. **CQT** - Constant-Q Transform [1]
-   * _sampleRate_ - Target (expected) sample rate of audio inputs (default = 44100)
-   * _stepSize_ - The step size (number of samples) for the framing function (default = 512)
-   * _windowType_ - Windowing function: bartlett, blackman, blackmanHarris, hamming, or hann (default = hann)
-   * _binsPerOctave_ - The number of CQT bins/octave (default = 24)
-   * _maxFreq_ - Maximum frequency (hz) to look for (default = 12543.854)
-   * _minFreq_ - Minimum frequency (hz) to look for (default = 16.351599)
-   * _threshold_ - Minimum threshold (default = 0.0054)
-
- 2. **MFCC** - Mel-Frequency Cepstral Coefficients [2]
-   * _sampleRate_ - Target (expected) sample rate of audio inputs (default = 44100)
-   * _frameSize_* - Frame size (number of samples) for the framing fucntion (default = 1024)
-   * _stepSize_ - The step size (number of samples) for the framing function (default = 512)
-   * _windowType_ - Windowing function: bartlett, blackman, blackmanHarris, hamming, or hann (default = hann)
-   * _numCoeffs_ - Number of cepstral coefficients to extract (default = 13)
-   * _melFilters_ - Number of mel filter banks to use (default = 40)
-   * _minFreq_ - Minimum frequency (hz) for the filter bank (default = 130.0)
-   * _maxFreq_ - Maximum frequency (hz) for the filter bank (default = 6854.0)
-
- 3. **SpectralShape** - A combination of four spectral features: Centroid, Spread, Skewness, and Kurtosis [3]
-   * _sampleRate_ - Target (expected) sample rate of audio inputs (default = 44100)
-   * _frameSize_* - Frame size (number of samples) for the framing fucntion (default = 1024)
-   * _stepSize_ - The step size (number of samples) for the framing function (default = 512)
-   * _windowType_ - Windowing function: bartlett, blackman, blackmanHarris, hamming, or hann (default = hann)
-
- 4. **SpectralFlux** - Spectral Flux [4]
-   * _sampleRate_ - Target (expected) sample rate of audio inputs (default = 44100)
-   * _frameSize_* - Frame size (number of samples) for the framing fucntion (default = 1024)
-   * _stepSize_ - The step size (number of samples) for the framing function (default = 512)
-   * _windowType_ - Windowing function: bartlett, blackman, blackmanHarris, hamming, or hann (default = hann)
-   * _diffLength_ - Compares frames space _n_ length apart, 1 = consecutive frames (default = 1)
-
- 5. **SpectralOnsets** - Spectral Onset Detection [5]
-   * _sampleRate_ - Target (expected) sample rate of audio inputs (default = 44100)
-   * _frameSize_* - Frame size (number of samples) for the framing fucntion (default = 1024)
-   * _stepSize_ - The step size (number of samples) for the framing function (default = 512)
-   * _windowType_ - Windowing function: bartlett, blackman, blackmanHarris, hamming, or hann (default = hann)
-   * _ratio_ - Minimum activation ratio for windowing function (default = 0.22)
-   * _threshold_ - Minimum threshold for peak-picking (default = 2.5)
-
- > [1] Judith C Brown and Miller S Puckette. An efficient algorithm for the calculation of a constant q transform. The Journal of the Acoustical Society of America, 92:2698, 1992.<br/>
- > [2] Steven Davis and Paul Mermelstein. Comparison of parametric representations for monosyllabic word recognition in continuously spoken sentences. Acoustics, Speech and Signal Processing, IEEE Transactions on, 28(4):357–366, 1980.<br/>
- > [3] Olivier Gillet and Ga ̈el Richard. Automatic transcription of drum loops. In
-Acoustics, Speech, and Signal Processing, 2004. Proceedings.(ICASSP’04). IEEE International Conference on, volume 4, pages iv–269. IEEE, 2004.<br/>
- > [4] Simon Dixon. Onset detection revisited. In Proceedings of the 9th International Conference on Digital Audio Effects, volume 120, pages 133–137, 2006.<br/>
- > [5] Sebastian Bock, Florian Krebs, and Markus Schedl. Evaluating the online capa- bilities of onset detection methods. In ISMIR, pages 49–54, 2012.
 
 License
 -------
